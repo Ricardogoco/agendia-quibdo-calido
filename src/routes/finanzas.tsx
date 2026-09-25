@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { AgendiaApp } from "@/components/agendia-app";
+export const Route = createFileRoute("/finanzas")({head:()=>({meta:[{title:"Finanzas | AgendIA-UIB"},{name:"description",content:"Consulta gastos, ingresos, ahorro, deudas y arriendo en AgendIA-UIB."},{property:"og:title",content:"Finanzas | AgendIA-UIB"},{property:"og:description",content:"Consulta gastos, ingresos, ahorro, deudas y arriendo en AgendIA-UIB."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:()=> <AgendiaApp view="finanzas"/>});
