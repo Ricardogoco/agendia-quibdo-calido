@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { AgendiaApp } from "@/components/agendia-app";
+export const Route = createFileRoute("/pqrs")({head:()=>({meta:[{title:"PQRS | AgendIA-UIB"},{name:"description",content:"Escribe tus peticiones, quejas, reclamos y sugerencias en AgendIA-UIB."},{property:"og:title",content:"PQRS | AgendIA-UIB"},{property:"og:description",content:"Escribe tus peticiones, quejas, reclamos y sugerencias en AgendIA-UIB."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:()=> <AgendiaApp view="pqrs"/>});
