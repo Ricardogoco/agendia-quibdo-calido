@@ -10,33 +10,154 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AgendaRouteImport } from './routes/agenda'
+import { Route as AjustesRouteImport } from './routes/ajustes'
+import { Route as AsistenteRouteImport } from './routes/asistente'
+import { Route as FacturasRouteImport } from './routes/facturas'
+import { Route as FinanzasRouteImport } from './routes/finanzas'
+import { Route as MasRouteImport } from './routes/mas'
+import { Route as PlanesRouteImport } from './routes/planes'
+import { Route as ReunionesRouteImport } from './routes/reuniones'
+import { Route as WhatsappRouteImport } from './routes/whatsapp'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgendaRoute = AgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AjustesRoute = AjustesRouteImport.update({
+  id: '/ajustes',
+  path: '/ajustes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AsistenteRoute = AsistenteRouteImport.update({
+  id: '/asistente',
+  path: '/asistente',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacturasRoute = FacturasRouteImport.update({
+  id: '/facturas',
+  path: '/facturas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanzasRoute = FinanzasRouteImport.update({
+  id: '/finanzas',
+  path: '/finanzas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MasRoute = MasRouteImport.update({
+  id: '/mas',
+  path: '/mas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanesRoute = PlanesRouteImport.update({
+  id: '/planes',
+  path: '/planes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReunionesRoute = ReunionesRouteImport.update({
+  id: '/reuniones',
+  path: '/reuniones',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WhatsappRoute = WhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agenda': typeof AgendaRoute
+  '/ajustes': typeof AjustesRoute
+  '/asistente': typeof AsistenteRoute
+  '/facturas': typeof FacturasRoute
+  '/finanzas': typeof FinanzasRoute
+  '/mas': typeof MasRoute
+  '/planes': typeof PlanesRoute
+  '/reuniones': typeof ReunionesRoute
+  '/whatsapp': typeof WhatsappRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agenda': typeof AgendaRoute
+  '/ajustes': typeof AjustesRoute
+  '/asistente': typeof AsistenteRoute
+  '/facturas': typeof FacturasRoute
+  '/finanzas': typeof FinanzasRoute
+  '/mas': typeof MasRoute
+  '/planes': typeof PlanesRoute
+  '/reuniones': typeof ReunionesRoute
+  '/whatsapp': typeof WhatsappRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agenda': typeof AgendaRoute
+  '/ajustes': typeof AjustesRoute
+  '/asistente': typeof AsistenteRoute
+  '/facturas': typeof FacturasRoute
+  '/finanzas': typeof FinanzasRoute
+  '/mas': typeof MasRoute
+  '/planes': typeof PlanesRoute
+  '/reuniones': typeof ReunionesRoute
+  '/whatsapp': typeof WhatsappRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/agenda'
+    | '/ajustes'
+    | '/asistente'
+    | '/facturas'
+    | '/finanzas'
+    | '/mas'
+    | '/planes'
+    | '/reuniones'
+    | '/whatsapp'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/agenda'
+    | '/ajustes'
+    | '/asistente'
+    | '/facturas'
+    | '/finanzas'
+    | '/mas'
+    | '/planes'
+    | '/reuniones'
+    | '/whatsapp'
+  id:
+    | '__root__'
+    | '/'
+    | '/agenda'
+    | '/ajustes'
+    | '/asistente'
+    | '/facturas'
+    | '/finanzas'
+    | '/mas'
+    | '/planes'
+    | '/reuniones'
+    | '/whatsapp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgendaRoute: typeof AgendaRoute
+  AjustesRoute: typeof AjustesRoute
+  AsistenteRoute: typeof AsistenteRoute
+  FacturasRoute: typeof FacturasRoute
+  FinanzasRoute: typeof FinanzasRoute
+  MasRoute: typeof MasRoute
+  PlanesRoute: typeof PlanesRoute
+  ReunionesRoute: typeof ReunionesRoute
+  WhatsappRoute: typeof WhatsappRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +169,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agenda': {
+      id: '/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AgendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ajustes': {
+      id: '/ajustes'
+      path: '/ajustes'
+      fullPath: '/ajustes'
+      preLoaderRoute: typeof AjustesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/asistente': {
+      id: '/asistente'
+      path: '/asistente'
+      fullPath: '/asistente'
+      preLoaderRoute: typeof AsistenteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/facturas': {
+      id: '/facturas'
+      path: '/facturas'
+      fullPath: '/facturas'
+      preLoaderRoute: typeof FacturasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/finanzas': {
+      id: '/finanzas'
+      path: '/finanzas'
+      fullPath: '/finanzas'
+      preLoaderRoute: typeof FinanzasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mas': {
+      id: '/mas'
+      path: '/mas'
+      fullPath: '/mas'
+      preLoaderRoute: typeof MasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/planes': {
+      id: '/planes'
+      path: '/planes'
+      fullPath: '/planes'
+      preLoaderRoute: typeof PlanesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reuniones': {
+      id: '/reuniones'
+      path: '/reuniones'
+      fullPath: '/reuniones'
+      preLoaderRoute: typeof ReunionesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/whatsapp': {
+      id: '/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof WhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgendaRoute: AgendaRoute,
+  AjustesRoute: AjustesRoute,
+  AsistenteRoute: AsistenteRoute,
+  FacturasRoute: FacturasRoute,
+  FinanzasRoute: FinanzasRoute,
+  MasRoute: MasRoute,
+  PlanesRoute: PlanesRoute,
+  ReunionesRoute: ReunionesRoute,
+  WhatsappRoute: WhatsappRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
