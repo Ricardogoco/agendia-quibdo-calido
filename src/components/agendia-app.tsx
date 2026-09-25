@@ -46,7 +46,7 @@ export function AgendiaApp({ view }: { view: View }) {
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   useEffect(() => { try { const stored = localStorage.getItem("agendia-data-v1"); if(stored) { const saved={...initialData(),...JSON.parse(stored)} as AppData; const elapsed=Date.now()-saved.lastQuoteAt; const shouldChange=saved.frequency==="Cada vez que abro la app" || saved.frequency==="Cada 6 horas" && elapsed>=21600000 || saved.frequency==="Una vez al día" && elapsed>=86400000; if(shouldChange) { const eligible=quotes.map((q,i)=>saved.categories.includes(q.category)?i:-1).filter(i=>i>=0); const remaining=saved.quoteQueue.filter(i=>eligible.includes(i)); const queue=remaining.length?remaining:[...eligible].filter(i=>i!==saved.quoteIndex).sort(()=>Math.random()-.5); const next=queue[0]; if(next!==undefined){ saved.quoteIndex=next; saved.quoteQueue=queue.slice(1); saved.lastQuoteAt=Date.now(); } } setData(saved); } } catch {} setReady(true); }, []);
   useEffect(() => { if(ready) { try { localStorage.setItem("agendia-data-v1",JSON.stringify(data)); } catch { setToast("Espacio lleno: no se pudo guardar este archivo."); } } document.documentElement.classList.toggle("dark",data.dark); }, [data,ready]);
-  useEffect(() => { if(toast) { const t=setTimeout(()=>setToast(""),3500); return ()=>clearTimeout(t); } },[toast]);
+  useEffect(() => { if(!toast) return; const t=setTimeout(()=>setToast(""),3500); return ()=>clearTimeout(t); },[toast]);
   const update = (patch:Partial<AppData>) => setData(prev=>({...prev,...patch}));
   const go = (v:View) => navigate({to:paths[v]});
   const openDialog = (type:typeof dialog) => { setForm({title:"",amount:"",date:today(),time:"15:00",place:"",method:"Nequi",category:"Alimentación",store:""});setDialog(type); };
@@ -69,7 +69,7 @@ export function AgendiaApp({ view }: { view: View }) {
   const greeting=hour<12?"Buenos días":hour<18?"Buenas tardes":"Buenas noches";
   const available=2597000+data.movements.filter(m=>m.id>1000000000).reduce((sum,m)=>sum+(m.kind==="ingreso"?m.amount:-m.amount),0)-data.natilleraPayments*20000;
   const sortedEvents=[...data.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-  const currentQuote=quotes[data.quoteIndex] ?? quotes[0];
+  const currentQuote=quotes[data.quoteIndex] ?? {text:"Cuentas claras, amistades largas.",author:"Refrán popular",category:"Finanzas"};
   const monthTotal=(kind:"ingreso"|"gasto")=>data.movements.filter(m=>m.kind===kind && m.date.slice(0,7)===today().slice(0,7)).reduce((sum,m)=>sum+m.amount,0);
   const navigateBack=()=>go("mas");
   const isMore=!["inicio","agenda","finanzas"].includes(view);
