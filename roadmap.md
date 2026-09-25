@@ -1,0 +1,4 @@
+- [x] Create branded mobile-first agenda and finance app with sample data.
+- [x] Add personalization, settings, navigation, and local persistence.
+- [x] Add supporting sections for meetings, assistant, invoices, WhatsApp, and plans.
+- [ ] Verify layout and interactions in browser.
