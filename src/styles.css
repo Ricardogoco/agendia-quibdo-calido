@@ -275,3 +275,5 @@ section { margin-top:26px; }
 .stat-grid .stat-money { font-size:clamp(9px,2.45vw,11px); }
 .check-row a { flex:1; min-width:0; overflow-wrap:anywhere; color:var(--primary); text-decoration:underline; text-underline-offset:2px; }
 @media(min-width:600px) { .welcome-screen { min-height:100%; }.stat-grid .stat-money { font-size:10px; } }
+.welcome-art { height:128px; }
+.welcome-art img { max-width:100%; }
