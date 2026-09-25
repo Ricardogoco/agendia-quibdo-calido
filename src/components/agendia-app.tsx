@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CalendarDays, Wallet, Mic, Menu, MapPin, Bell, ArrowUpRight, ArrowDownLeft, ChevronRight, Plus, RefreshCw, Bookmark, Share2, Video, Bot, Receipt, MessageCircle, CreditCard, Settings, Moon, Sun, Check, ShoppingBasket, Clock3, TrendingUp, TrendingDown, Pencil, X, Send, Trash2, CircleDollarSign, PiggyBank, Home, ChevronLeft } from "lucide-react";
+import { CalendarDays, Wallet, Mic, Menu, MapPin, Bell, ArrowUpRight, ArrowDownLeft, ChevronRight, Plus, RefreshCw, Bookmark, Share2, Video, Bot, Receipt, MessageCircle, CreditCard, Settings, Moon, Sun, Check, ShoppingBasket, Clock3, TrendingUp, TrendingDown, Pencil, X, Send, Trash2, CircleDollarSign, PiggyBank, Home, ChevronLeft, NotebookPen, ClipboardList, Target, Coins, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import mark from "@/assets/agendia-mark.jpg.asset.json";
 import logo from "@/assets/agendia-logo.jpg.asset.json";
@@ -11,13 +12,16 @@ import type { VoiceAction } from "@/lib/voice-parser";
 import { ReminderSheet, PaymentReminderSheet, AlarmScreen, UpgradeSheet, PlansView, OfflineBanner, Locked, hasFeature, limits, type Plan, type Feature, type AlertCfg } from "@/components/plans-reminders";
 import { MeetingsView, AssistantView, InvoicesView, WhatsAppView, sampleMeeting, type Meeting, type Bill } from "@/components/more-views";
 
-type View = "inicio" | "agenda" | "finanzas" | "mas" | "reuniones" | "asistente" | "facturas" | "whatsapp" | "planes" | "ajustes";
+type View = "inicio" | "agenda" | "finanzas" | "mas" | "reuniones" | "asistente" | "facturas" | "whatsapp" | "planes" | "ajustes" | "notas" | "pqrs";
 type Event = { id: number; title: string; date: string; time: string; place: string; reminder: string };
 type Movement = { id: number; title: string; amount: number; method: string; category: string; kind: "ingreso" | "gasto" | "retiro" | "prestamo"; date: string };
 type DebtItem = { id: number; title: string; detail: string; balance: number; original: number; incoming?: boolean };
 type Goal = { id: number; name: string; target: number; saved: number; quota: number };
+type Note = { id: number; title: string; body: string; updatedAt: string };
+type Pqrs = { id: number; type: "Petición" | "Queja" | "Reclamo" | "Sugerencia"; subject: string; message: string; contact: string; createdAt: string };
+type SavingsContribution = { id: number; goalId: number; amount: number; method: string; date: string };
 type StoredFile = { name: string; url: string };
-type AppData = { name: string; tone: string; categories: string[]; frequency: string; dark: boolean; offline: boolean; onboarded: boolean; reminders: string; events: Event[]; tasks: { id: number; text: string; done: boolean }[]; groceries: { id: number; store: string; item: string; done: boolean }[]; movements: Movement[]; quoteQueue: number[]; quoteIndex: number; lastQuoteAt: number; savedQuotes: number[]; recordings: StoredFile[]; invoices: StoredFile[]; natilleraPayments: number; debts: DebtItem[]; goals: Goal[]; meetings: Meeting[]; bills: Bill[]; plan: Plan; usage: { voice: number; questions: number; recordings: number }; pendingSync: number; eventAlerts: Record<number, AlertCfg>; payAlerts: number[] };
+type AppData = { name: string; tone: string; categories: string[]; frequency: string; dark: boolean; offline: boolean; onboarded: boolean; reminders: string; events: Event[]; tasks: { id: number; text: string; done: boolean }[]; groceries: { id: number; store: string; item: string; done: boolean }[]; movements: Movement[]; quoteQueue: number[]; quoteIndex: number; lastQuoteAt: number; savedQuotes: number[]; recordings: StoredFile[]; invoices: StoredFile[]; natilleraPayments: number; debts: DebtItem[]; goals: Goal[]; notes: Note[]; pqrs: Pqrs[]; savingsContributions: SavingsContribution[]; meetings: Meeting[]; bills: Bill[]; plan: Plan; usage: { voice: number; questions: number; recordings: number }; pendingSync: number; eventAlerts: Record<number, AlertCfg>; payAlerts: number[] };
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const addDays = (date: string, n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 const money = (n: number) => `$${Math.round(n).toLocaleString("es-CO")}`;
@@ -32,8 +36,8 @@ const quotes = [
   { text: "No es que tengamos poco tiempo, sino que perdemos mucho.", author: "Séneca", category: "Filosofía" },
   { text: "Nadie se baña dos veces en el mismo río.", author: "Heráclito", category: "Filosofía" },
 ];
-const paths: Record<View,string> = { inicio:"/", agenda:"/agenda", finanzas:"/finanzas", mas:"/mas", reuniones:"/reuniones", asistente:"/asistente", facturas:"/facturas", whatsapp:"/whatsapp", planes:"/planes", ajustes:"/ajustes" };
-const moreItems = [{view:"reuniones" as View,label:"Reuniones",icon:Video,detail:"Graba y organiza tus encuentros"},{view:"asistente" as View,label:"Asistente",icon:Bot,detail:"Una mano con tus pendientes"},{view:"facturas" as View,label:"Facturas",icon:Receipt,detail:"Tus comprobantes en un lugar"},{view:"whatsapp" as View,label:"WhatsApp",icon:MessageCircle,detail:"Comparte tus recordatorios"},{view:"planes" as View,label:"Planes",icon:CreditCard,detail:"Tu espacio, a tu ritmo"},{view:"ajustes" as View,label:"Ajustes",icon:Settings,detail:"Hazla tuya"}];
+const paths: Record<View,string> = { inicio:"/", agenda:"/agenda", finanzas:"/finanzas", mas:"/mas", reuniones:"/reuniones", asistente:"/asistente", facturas:"/facturas", whatsapp:"/whatsapp", planes:"/planes", ajustes:"/ajustes", notas:"/notas", pqrs:"/pqrs" };
+const moreItems = [{view:"notas" as View,label:"Bloc de notas",icon:NotebookPen,detail:"Ideas y apuntes al instante"},{view:"reuniones" as View,label:"Reuniones",icon:Video,detail:"Graba y organiza tus encuentros"},{view:"asistente" as View,label:"Asistente",icon:Bot,detail:"Una mano con tus pendientes"},{view:"facturas" as View,label:"Facturas",icon:Receipt,detail:"Tus comprobantes en un lugar"},{view:"whatsapp" as View,label:"WhatsApp",icon:MessageCircle,detail:"Comparte tus recordatorios"},{view:"pqrs" as View,label:"PQRS",icon:ClipboardList,detail:"Peticiones, quejas, reclamos y sugerencias"},{view:"planes" as View,label:"Planes",icon:CreditCard,detail:"Tu espacio, a tu ritmo"},{view:"ajustes" as View,label:"Ajustes",icon:Settings,detail:"Hazla tuya"}];
 
 function SectionTitle({ title, action, onAction }: { title:string; action?:string; onAction?:()=>void }) { return <div className="section-heading"><h2>{title}</h2>{action && <Button variant="ghost" className="text-primary h-8 px-1" onClick={onAction}>{action}<ChevronRight /></Button>}</div>; }
 function BrandCard({ children, className="" }: {children:React.ReactNode;className?:string}) {return <div className={`brand-card ${className}`}><div className="brand-wave" aria-hidden="true" /><div className="relative z-10">{children}</div></div>}
