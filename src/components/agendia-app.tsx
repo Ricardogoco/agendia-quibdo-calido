@@ -108,7 +108,7 @@ export function AgendiaApp({ view }: { view: View }) {
   const gate={plan:data.plan,offline:data.offline,locked:(f:Feature|"limite")=>setUpgrade(f),pending:()=>setData(p=>({...p,pendingSync:p.pendingSync+1}))};
   const cfgOf=(e:Event):AlertCfg=>data.eventAlerts[e.id]??{mode:"Alarma que suena",alerts:e.reminder.includes("1 día")?["1 día antes","1 hora antes","15 min antes"]:["1 hora antes"],repeat:false};
   const alertText=(e:Event)=>{const c=data.eventAlerts[e.id]; return c?`${c.mode==="Alarma que suena"?"Alarma":"Notificación"} ${c.alerts.join(", ")}${c.repeat?" · repite cada 5 min":""}`:`Alarma ${e.reminder}`;};
-  const setOffline=(offline:boolean)=>{ if(!offline&&data.offline&&data.pendingSync>0){const n=data.pendingSync;update({offline,pendingSync:0});setToast(`Se sincronizaron ${n} pendiente${n>1?"s":""}`);} else { update({offline}); if(offline) setToast("Modo sin internet activado"); } };
+  const setOffline=(offline:boolean)=>{ if(!offline&&data.offline&&data.pendingSync>0){const n=data.pendingSync;update({offline,pendingSync:0});setToast(n>1?`Se sincronizaron ${n} pendientes`:"Se sincronizó 1 pendiente");} else { update({offline}); if(offline) setToast("Modo sin internet activado"); } };
   const isMore=!["inicio","agenda","finanzas"].includes(view);
   if(!ready) return <div className="phone-shell" />;
   return <div className="desktop-stage"><div className="phone-shell">
