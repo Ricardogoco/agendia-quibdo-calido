@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, Square, Share2, MessageSquareQuote, Plus, Send, Receipt, ShieldCheck, Trash2, Check, CheckCheck, Play, Bot } from "lucide-react";
+import { Lock, Mic, Square, Share2, MessageSquareQuote, Plus, Send, Receipt, ShieldCheck, Trash2, Check, CheckCheck, Play, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Locked, hasFeature, type Plan, type Feature } from "@/components/plans-reminders";
+export type Gate = { plan: Plan; offline: boolean; locked: (f: Feature | "limite") => void; pending: () => void };
+const PendingNote = ({ what }: { what: string }) => <div className="pending-note"><strong>{what} pendiente</strong><p>Sin internet. Se procesará en cuanto vuelva la conexión.</p></div>;
 
 export type Meeting = { id: number; title: string; date: string; duration: string; summary: string; agreements: string[]; tasks: { text: string; owner: string }[]; open: string[]; keywords: string[]; transcript: { min: string; who: string; text: string }[] };
 export type Bill = { id: number; store: string; nit: string; total: number; category: string; date: string; warrantyMonths: number; image?: string | undefined; fileName?: string | undefined };
@@ -30,22 +33,23 @@ export const sampleMeeting = (date: string, duration: string): Meeting => ({
 });
 
 /* ---------------- Reuniones ---------------- */
-export function MeetingsView({ meetings, today, onSave, onAddTask, toast }: { meetings: Meeting[]; today: string; onSave: (m: Meeting[]) => void; onAddTask: (t: string) => void; toast: (s: string) => void }) {
+export function MeetingsView({ meetings, today, onSave, onAddTask, toast, gate, canRecord }: { meetings: Meeting[]; today: string; onSave: (m: Meeting[]) => void; onAddTask: (t: string) => void; toast: (s: string) => void; gate: Gate; canRecord: () => boolean }) {
   const [state, setState] = useState<"idle" | "rec" | "proc">("idle");
   const [secs, setSecs] = useState(0);
   const [openId, setOpenId] = useState<number | null>(null);
   useEffect(() => { if (state !== "rec") return; const t = setInterval(() => setSecs(s => s + 1), 1000); return () => clearInterval(t); }, [state]);
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-  const stop = () => { setState("proc"); const dur = fmt(Math.max(secs, 9 * 60 + 12)); setTimeout(() => { const m = sampleMeeting(today, dur); onSave([m, ...meetings]); setState("idle"); setSecs(0); setOpenId(m.id); toast("Reunión procesada"); }, 2200); };
+  const start = () => { if (canRecord()) setState("rec"); };
+  const stop = () => { if (gate.offline) gate.pending(); setState("proc"); const dur = fmt(Math.max(secs, 9 * 60 + 12)); setTimeout(() => { const m = sampleMeeting(today, dur); onSave([m, ...meetings]); setState("idle"); setSecs(0); setOpenId(m.id); toast("Reunión procesada"); }, 2200); };
   const open = meetings.find(m => m.id === openId);
-  if (open) return <MeetingDetail m={open} onBack={() => setOpenId(null)} onAddTask={onAddTask} onDelete={() => { onSave(meetings.filter(x => x.id !== open.id)); setOpenId(null); }} toast={toast} />;
+  if (open) return <MeetingDetail m={open} onBack={() => setOpenId(null)} onAddTask={onAddTask} onDelete={() => { onSave(meetings.filter(x => x.id !== open.id)); setOpenId(null); }} toast={toast} gate={gate} />;
   return <>
     <div className="rec-card">
       {state === "proc" ? <><div className="rec-spinner" aria-hidden="true" /><strong>Procesando…</strong><p>Estoy organizando acuerdos, tareas y temas.</p></> : <>
-        <button type="button" className={`voice-mic ${state === "rec" ? "listening" : ""}`} aria-label={state === "rec" ? "Detener grabación" : "Grabar nueva reunión"} onClick={() => state === "rec" ? stop() : setState("rec")}><span /><span /><span />{state === "rec" ? <Square /> : <Mic />}</button>
+        <button type="button" className={`voice-mic ${state === "rec" ? "listening" : ""}`} aria-label={state === "rec" ? "Detener grabación" : "Grabar nueva reunión"} onClick={() => state === "rec" ? stop() : start()}><span /><span /><span />{state === "rec" ? <Square /> : <Mic />}</button>
         <strong className="rec-time">{fmt(secs)}</strong>
         {state === "rec" ? <div className="rec-bars" aria-hidden="true">{Array.from({ length: 18 }).map((_, i) => <i key={i} style={{ animationDelay: `${(i % 6) * 0.12}s` }} />)}</div> : <p>Toca para grabar una nueva reunión</p>}
-        <Button className="w-full h-12 mt-3" variant={state === "rec" ? "destructive" : "default"} onClick={() => state === "rec" ? stop() : setState("rec")}>{state === "rec" ? <><Square /> Detener</> : <><Mic /> Grabar nueva reunión</>}</Button>
+        <Button className="w-full h-12 mt-3" variant={state === "rec" ? "destructive" : "default"} onClick={() => state === "rec" ? stop() : start()}>{state === "rec" ? <><Square /> Detener</> : <><Mic /> Grabar nueva reunión</>}</Button>
       </>}
     </div>
     <div className="section-heading"><h2>Mis reuniones</h2></div>
@@ -54,7 +58,7 @@ export function MeetingsView({ meetings, today, onSave, onAddTask, toast }: { me
   </>;
 }
 
-function MeetingDetail({ m, onBack, onAddTask, onDelete, toast }: { m: Meeting; onBack: () => void; onAddTask: (t: string) => void; onDelete: () => void; toast: (s: string) => void }) {
+function MeetingDetail({ m, onBack, onAddTask, onDelete, toast, gate }: { m: Meeting; onBack: () => void; onAddTask: (t: string) => void; onDelete: () => void; toast: (s: string) => void; gate: Gate }) {
   const [tab, setTab] = useState("Resumen");
   const [asking, setAsking] = useState(false);
   const [q, setQ] = useState("");
@@ -77,17 +81,20 @@ function MeetingDetail({ m, onBack, onAddTask, onDelete, toast }: { m: Meeting; 
     <div className="finance-tabs">{["Resumen", "Transcripción", "Mapa mental"].map(t => <Button key={t} variant="ghost" className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t}</Button>)}</div>
     {tab === "Resumen" && <div className="meeting-sections">
       <p className="meeting-summary">{m.summary}</p>
-      <h3>Acuerdos</h3><ul>{m.agreements.map(a => <li key={a}><Check className="size-4 text-success" />{a}</li>)}</ul>
+      <h3>Acuerdos</h3>{hasFeature(gate.plan, "acuerdos") ? <ul>{m.agreements.map(a => <li key={a}><Check className="size-4 text-success" />{a}</li>)}</ul> : <Locked feature="acuerdos" onUpgrade={gate.locked} compact />}
       <h3>Tareas asignadas</h3><div className="stack-list">{m.tasks.map(t => <div key={t.text} className="task-assign"><div><strong>{t.text}</strong><small>{t.owner}</small></div><Button size="sm" variant="outline" onClick={() => { onAddTask(t.text); toast("Tarea agregada a tu agenda"); }}><Plus /> Agenda</Button></div>)}</div>
       <h3>Temas inconclusos</h3><ul>{m.open.map(a => <li key={a} className="pending">{a}</li>)}</ul>
       <h3>Palabras clave</h3><div className="chip-row">{m.keywords.map(k => <span key={k} className="keyword">{k}</span>)}</div>
     </div>}
-    {tab === "Transcripción" && <div className="transcript">{m.transcript.map(l => <div key={l.min}><span className="mono">{l.min}</span><div><strong className={l.who === "Víctor" ? "other" : ""}>{l.who}</strong><p>{l.text}</p></div></div>)}</div>}
-    {tab === "Mapa mental" && <div className="mindmap">
+    {tab === "Transcripción" && gate.offline && <PendingNote what="Transcripción" />}
+    {tab === "Transcripción" && !gate.offline && <div className="transcript">{m.transcript.map(l => <div key={l.min}><span className="mono">{l.min}</span><div><strong className={l.who === "Víctor" ? "other" : ""}>{l.who}</strong><p>{l.text}</p></div></div>)}</div>}
+    {tab === "Mapa mental" && gate.offline && <PendingNote what="Mapa mental" />}
+    {tab === "Mapa mental" && !gate.offline && !hasFeature(gate.plan, "mapas") && <Locked feature="mapas" onUpgrade={gate.locked} />}
+    {tab === "Mapa mental" && !gate.offline && hasFeature(gate.plan, "mapas") && <div className="mindmap">
       <div className="mm-center">{m.title.split("·")[0]}</div>
       {[{ t: "Acuerdos", c: "blue", items: m.agreements }, { t: "Tareas", c: "teal", items: m.tasks.map(x => x.text) }, { t: "Pendientes", c: "coral", items: m.open }, { t: "Claves", c: "green", items: m.keywords.slice(0, 4) }].map(b => <div key={b.t} className={`mm-branch ${b.c}`}><strong>{b.t}</strong>{b.items.map(i => <span key={i}>{i}</span>)}</div>)}
     </div>}
-    <div className="finance-actions"><Button variant="outline" onClick={share}><Share2 /> Compartir acta</Button><Button onClick={() => setAsking(true)}><MessageSquareQuote /> Pregúntale a la grabación</Button></div>
+    <div className="finance-actions"><Button variant="outline" onClick={() => hasFeature(gate.plan, "actas") ? share() : gate.locked("actas")}>{!hasFeature(gate.plan, "actas") && <Lock />}<Share2 /> Compartir acta</Button><Button onClick={() => hasFeature(gate.plan, "preguntar") ? setAsking(true) : gate.locked("preguntar")}>{!hasFeature(gate.plan, "preguntar") && <Lock />}<MessageSquareQuote /> Pregúntale a la grabación</Button></div>
     {asking && <div className="detail-card">
       <h3>Pregúntale a la grabación</h3>
       <div className="chip-row mb-3">{["¿Cuál fue el precio?", "¿Cada cuánto son las entregas?", "¿Qué pasó con el transporte?"].map(s => <Button key={s} size="sm" variant="outline" className="choice-chip" onClick={() => ask(s)}>{s}</Button>)}</div>
@@ -100,7 +107,7 @@ function MeetingDetail({ m, onBack, onAddTask, onDelete, toast }: { m: Meeting; 
 
 /* ---------------- Asistente ---------------- */
 type AsstData = { name: string; today: string; events: { title: string; date: string; time: string; place: string }[]; tasks: { text: string; done: boolean }[]; movements: { amount: number; category: string; kind: string; date: string }[]; meetings: Meeting[]; debts: { title: string; balance: number; incoming?: boolean }[]; available: number };
-export function AssistantView({ d }: { d: AsstData }) {
+export function AssistantView({ d, gate, canAsk }: { d: AsstData; gate: Gate; canAsk: () => boolean }) {
   const [msgs, setMsgs] = useState<{ me: boolean; text: string }[]>([{ me: false, text: `¡Hola, ${d.name}! Pregúntame por tu agenda, tus gastos o tus reuniones.` }]);
   const [q, setQ] = useState(""); const [typing, setTyping] = useState(false);
   const end = useRef<HTMLDivElement>(null);
@@ -118,7 +125,7 @@ export function AssistantView({ d }: { d: AsstData }) {
     if (/disponible|saldo|plata/.test(s)) return `Tienes ${money(d.available)} disponibles entre Bancolombia, Nequi y efectivo.`;
     return "Todavía no sé responder eso. Prueba con tu agenda de hoy, tus gastos del mes, el arriendo, tus deudas o lo pendiente con Víctor.";
   };
-  const send = (text: string) => { if (!text.trim() || typing) return; setMsgs(m => [...m, { me: true, text }]); setQ(""); setTyping(true); setTimeout(() => { setMsgs(m => [...m, { me: false, text: answer(text) }]); setTyping(false); }, 700); };
+  const send = (text: string) => { if (!text.trim() || typing) return; if (gate.offline) { gate.pending(); setMsgs(m => [...m, { me: true, text }, { me: false, text: "Estás sin internet. Guardé tu pregunta y te respondo cuando vuelva la conexión." }]); setQ(""); return; } if (!canAsk()) return; setMsgs(m => [...m, { me: true, text }]); setQ(""); setTyping(true); setTimeout(() => { setMsgs(m => [...m, { me: false, text: answer(text) }]); setTyping(false); }, 700); };
   return <div className="asst">
     <div className="asst-log">{msgs.map((m, i) => <div key={i} className={`asst-msg ${m.me ? "me" : ""}`}>{!m.me && <span className="asst-avatar"><Bot /></span>}<p>{m.text}</p></div>)}{typing && <div className="asst-msg"><span className="asst-avatar"><Bot /></span><p className="typing"><i /><i /><i /></p></div>}<div ref={end} /></div>
     <div className="asst-suggest">{["¿Qué tengo hoy?", "¿Cuánto gasté este mes?", "¿Qué quedó pendiente con Víctor?", "¿Cuándo vence el arriendo?", "¿Qué es la tasa de usura?"].map(s => <button type="button" key={s} onClick={() => send(s)}>{s}</button>)}</div>
@@ -127,7 +134,7 @@ export function AssistantView({ d }: { d: AsstData }) {
 }
 
 /* ---------------- Facturas ---------------- */
-export function InvoicesView({ bills, today, onSave, onExpense, toast }: { bills: Bill[]; today: string; onSave: (b: Bill[]) => void; onExpense: (b: Bill) => void; toast: (s: string) => void }) {
+export function InvoicesView({ bills, today, onSave, onExpense, toast, gate }: { bills: Bill[]; today: string; onSave: (b: Bill[]) => void; onExpense: (b: Bill) => void; toast: (s: string) => void; gate: Gate }) {
   const blank = { store: "", nit: "", total: "", category: "Alimentación", date: today, warranty: "0", asExpense: true, image: undefined as string | undefined, fileName: undefined as string | undefined };
   const [f, setF] = useState(blank);
   const onFile = (file?: File) => { if (!file) return; if (file.size > 2000000) { toast("Elige un archivo de menos de 2 MB"); return; } const r = new FileReader(); r.onload = () => { if (typeof r.result === "string") setF(p => ({ ...p, image: file.type.startsWith("image/") ? r.result as string : undefined, fileName: file.name })); }; r.readAsDataURL(file); };
@@ -140,6 +147,7 @@ export function InvoicesView({ bills, today, onSave, onExpense, toast }: { bills
   return <>
     <div className="detail-card invoice-form">
       <label className="invoice-drop">{f.image ? <img src={f.image} alt="Factura seleccionada" /> : <><Receipt /><span>{f.fileName ?? "Subir foto o archivo"}</span><small>JPG, PNG o PDF · máx. 2 MB</small></>}<input type="file" accept="image/*,.pdf" capture="environment" onChange={e => { onFile(e.target.files?.[0]); e.target.value = ""; }} /></label>
+      <Button variant="outline" className="w-full h-11 mb-3" onClick={() => { if (!hasFeature(gate.plan, "lectura")) { gate.locked("lectura"); return; } if (!f.fileName) { toast("Primero sube la foto de la factura"); return; } setF(p => ({ ...p, store: "Almacén El Chocoano", nit: "900.458.213-1", total: "86500", category: "Hogar" })); toast("Leí la factura. Revisa los datos"); }}>{hasFeature(gate.plan, "lectura") ? <Receipt /> : <Lock />} Leer factura automáticamente</Button>
       <div className="modal-form">
         <label>Comercio<Input value={f.store} onChange={e => setF({ ...f, store: e.target.value })} placeholder="Ej. Almacén El Chocoano" /></label>
         <label>NIT<Input value={f.nit} onChange={e => setF({ ...f, nit: e.target.value })} placeholder="Ej. 900.123.456-7" /></label>
