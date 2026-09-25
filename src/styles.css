@@ -277,3 +277,19 @@ section { margin-top:26px; }
 @media(min-width:600px) { .welcome-screen { min-height:100%; }.stat-grid .stat-money { font-size:10px; } }
 .welcome-art { height:128px; }
 .welcome-art img { max-width:100%; }
+.voice-mic-wrap { text-align:center; padding:6px 0 18px; }.voice-mic-wrap p { font-size:14px; color:var(--muted-foreground); margin-top:14px; }
+.voice-mic { position:relative; width:96px; height:96px; border-radius:50%; margin:10px auto 0; display:grid; place-items:center; background:var(--brand-coral, var(--destructive)); color:var(--primary-foreground); border:0; cursor:pointer; box-shadow:0 12px 28px color-mix(in oklab,var(--brand-coral, var(--destructive)) 40%,transparent); }
+.voice-mic svg { width:38px; height:38px; position:relative; z-index:2; }
+.voice-mic span { position:absolute; inset:0; border-radius:50%; border:2px solid var(--brand-coral, var(--destructive)); opacity:0; }
+.voice-mic.listening span { animation:voice-wave 1.8s ease-out infinite; }.voice-mic.listening span:nth-child(2){animation-delay:.6s}.voice-mic.listening span:nth-child(3){animation-delay:1.2s}
+@keyframes voice-wave { 0%{transform:scale(1);opacity:.7} 100%{transform:scale(1.9);opacity:0} }
+.voice-input { display:grid; grid-template-columns:1fr auto; gap:8px; }.voice-eyebrow { display:block; margin:20px 0 10px; }
+.voice-examples { display:grid; gap:8px; }.voice-examples button { text-align:left; font-size:14px; line-height:1.4; padding:11px 14px; border-radius:10px; background:var(--muted); color:var(--foreground); border:1px solid var(--border); cursor:pointer; }
+.voice-heard { font-size:15px; font-style:italic; color:var(--muted-foreground); line-height:1.5; }
+.voice-actions { display:grid; gap:10px; }.voice-card { border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:var(--card); }
+.voice-card-head { display:flex; align-items:center; gap:10px; }.voice-card-head strong { flex:1; font-family:var(--font-display); font-size:15px; }
+.voice-card-icon { display:grid; place-items:center; width:34px; height:34px; border-radius:9px; background:var(--accent); color:var(--primary); }.voice-card-icon svg{width:18px;height:18px}
+.voice-card dl { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }.voice-card dl div { background:var(--muted); border-radius:7px; padding:5px 8px; }.voice-card dt { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted-foreground); }.voice-card dd { font-size:13px; font-weight:600; }
+.voice-ask { margin-top:12px; }.voice-ask p { font-size:13px; font-weight:600; margin-bottom:8px; }.voice-ask>div { display:flex; gap:6px; flex-wrap:wrap; }
+.voice-footer { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
+.undo-toast { display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left; }.undo-toast button { font-weight:700; text-decoration:underline; background:none; border:0; color:inherit; cursor:pointer; }
