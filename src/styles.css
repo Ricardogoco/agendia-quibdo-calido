@@ -353,3 +353,4 @@ section { margin-top:26px; }
 .wa-input { display:flex; gap:8px; align-items:center; padding:8px; background:var(--wa-bg); } .wa-input span:first-child { flex:1; background:var(--card); border-radius:20px; padding:9px 14px; font-size:13px; color:var(--muted-foreground); }
 .wa-mic { width:40px; height:40px; border-radius:50%; display:grid; place-items:center; background:#00A884; color:#fff; } .wa-mic svg { width:18px; }
 .wa + .fine-print, .wa .fine-print { padding:10px; }
+.mindmap { gap:14px; } .mm-center { position:static; transform:none; grid-column:1/-1; order:1; justify-self:center; width:120px; } .mm-branch:nth-of-type(n+4) { order:2; }
