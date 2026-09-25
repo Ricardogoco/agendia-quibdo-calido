@@ -268,3 +268,10 @@ section { margin-top:26px; }
 @media(min-width:600px) { .desktop-stage { padding:30px 0; }.phone-shell { width:390px; height:min(844px,calc(100dvh - 60px)); min-height:640px; border:7px solid oklch(0.17 0.023 262); border-radius:35px; box-shadow:0 25px 65px color-mix(in oklab,var(--foreground) 17%,transparent); overflow-y:auto; scrollbar-width:none; }.phone-shell::-webkit-scrollbar { display:none; }.bottom-nav { position:sticky; bottom:0; margin-top:-78px; }.app-content { min-height:calc(100% - 76px); padding-bottom:130px; }.modal-backdrop { position:sticky; height:100%; margin-top:-100%; }.toast-message { position:sticky; bottom:90px; } }
 @media(max-width:599px) { .phone-shell { height:100dvh; overflow-y:auto; scrollbar-width:none; }.bottom-nav { position:sticky; bottom:0; margin-top:-78px; }.modal-backdrop { position:fixed; }.toast-message { position:fixed; } }
 @media(prefers-reduced-motion: no-preference) { button,a { transition:background-color .18s ease,color .18s ease,transform .18s ease; }.quick-grid button:active,.more-list button:active { transform:scale(.98); } }
+/* Small-screen refinements */
+.welcome-art img { width:100%; max-width:345px; height:auto; object-fit:contain; }
+.stat-grid svg { display:none; }
+.stat-grid span { font-size:8px; }
+.stat-grid .stat-money { font-size:clamp(9px,2.45vw,11px); }
+.check-row a { flex:1; min-width:0; overflow-wrap:anywhere; color:var(--primary); text-decoration:underline; text-underline-offset:2px; }
+@media(min-width:600px) { .welcome-screen { min-height:100%; }.stat-grid .stat-money { font-size:10px; } }
