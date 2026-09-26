@@ -45,8 +45,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import mark from "@/assets/agendia-mark.jpg.asset.json";
-import logo from "@/assets/agendia-logo.jpg.asset.json";
+import mark from "@/assets/agendia-mark.webp";
+import logo from "@/assets/agendia-logo.webp";
 import { VoiceSheet } from "@/components/voice-sheet";
 import type { VoiceAction } from "@/lib/voice-parser";
 import {
@@ -952,7 +952,7 @@ export function AgendiaApp({ view }: { view: View }) {
         {!data.onboarded ? (
           <main className="welcome-screen">
             <div className="welcome-art">
-              <img src={logo.url} alt="AgendIA-UIB · Tu agenda y asistente personal" />
+              <img src={logo} alt="AgendIA-UIB · Tu agenda y asistente personal" />
             </div>
             <div className="welcome-copy">
               <span className="eyebrow">TU ESPACIO, A TU RITMO</span>
@@ -1026,7 +1026,7 @@ export function AgendiaApp({ view }: { view: View }) {
           <>
             <header className="app-header">
               <div className="brand-lockup">
-                <img src={mark.url} alt="" />
+                <img src={mark} alt="" />
                 <div>
                   <strong>
                     Agend<span>IA</span>
