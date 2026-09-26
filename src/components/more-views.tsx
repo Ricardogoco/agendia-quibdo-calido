@@ -420,14 +420,18 @@ function MeetingDetail({
               </li>
             ))}
           </ul>
-          <h3>Palabras clave</h3>
-          <div className="chip-row">
-            {m.keywords.map((k) => (
-              <span key={k} className="keyword">
-                {k}
-              </span>
-            ))}
-          </div>
+          {m.keywords.length > 0 && (
+            <>
+              <h3>Palabras clave</h3>
+              <div className="chip-row">
+                {m.keywords.map((k) => (
+                  <span key={k} className="keyword">
+                    {k}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
       {tab === "Transcripción" && gate.offline && <PendingNote what="Transcripción" />}
