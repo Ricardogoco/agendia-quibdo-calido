@@ -700,7 +700,7 @@ export function InvoicesView({
   bills: Bill[];
   today: string;
   onSave: (b: Bill[]) => void;
-  onExpense: (b: Bill) => void;
+  onExpense: (b: Bill, method: string) => void;
   toast: (s: string) => void;
   gate: Gate;
 }) {
@@ -712,6 +712,7 @@ export function InvoicesView({
     date: today,
     warranty: "0",
     asExpense: true,
+    method: "",
     image: undefined as string | undefined,
     fileName: undefined as string | undefined,
   };
@@ -743,6 +744,10 @@ export function InvoicesView({
       toast("Ingresa el total");
       return;
     }
+    if (f.asExpense && !f.method) {
+      toast("Elige cómo pagaste la factura");
+      return;
+    }
     const b: Bill = {
       id: Date.now(),
       store: f.store.trim(),
@@ -755,7 +760,7 @@ export function InvoicesView({
       fileName: f.fileName,
     };
     onSave([b, ...bills]);
-    if (f.asExpense) onExpense(b);
+    if (f.asExpense) onExpense(b, f.method);
     setF(blank);
     toast(f.asExpense ? "Factura guardada y gasto registrado" : "Factura guardada");
   };
@@ -884,6 +889,19 @@ export function InvoicesView({
             />{" "}
             Registrar también como gasto
           </label>
+          {f.asExpense && (
+            <label>
+              ¿Cómo pagaste?
+              <select value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}>
+                <option value="" disabled>
+                  Elige una opción
+                </option>
+                {["Nequi", "Bancolombia", "Bre-B", "Efectivo", "Tarjeta"].map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <Button className="w-full h-12" onClick={save}>
             Guardar factura <Check />
           </Button>

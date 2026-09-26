@@ -147,7 +147,25 @@ function dayOf(s: string): VoiceAction["day"] {
   return null;
 }
 
-export function parseVoice(text: string, debts: DebtRef[]): VoiceAction[] {
+export type ParseOptions = {
+  /** Cuota de la natillera del usuario, si tiene una registrada. */
+  natilleraQuota?: number | undefined;
+};
+
+/** Formas de pago que el usuario puede elegir cuando la frase no la dice. */
+export const paymentMethods = [
+  "Nequi",
+  "Bancolombia",
+  "Bre-B",
+  "Efectivo",
+  "Tarjeta de crédito",
+] as const;
+
+/** Acciones que mueven dinero y necesitan saber de dónde sale o a dónde llega. */
+export const needsMethod = (a: VoiceAction) =>
+  ["gasto", "ingreso", "abono", "prestamo", "natillera"].includes(a.kind);
+
+export function parseVoice(text: string, debts: DebtRef[], opts: ParseOptions = {}): VoiceAction[] {
   const clean = text
     .replace(/[.¡!¿?]+$/g, "")
     .replace(/\s+/g, " ")
@@ -168,7 +186,9 @@ export function parseVoice(text: string, debts: DebtRef[]): VoiceAction[] {
     const { time, rest } = parseTime(c);
     const amount = parseAmount(rest);
     let pay = method(c);
-    const payFor = () => pay ?? (hadWithdrawal ? "Efectivo" : "Nequi");
+    // Si la frase no dice la forma de pago, no se asume ninguna (el usuario la elige),
+    // salvo que antes en la misma frase haya un retiro: ahí se entiende que es efectivo.
+    const payFor = () => pay ?? (hadWithdrawal ? "Efectivo" : undefined);
     let a: VoiceAction | null = null;
 
     if (/natillera/i.test(c)) {
@@ -176,7 +196,7 @@ export function parseVoice(text: string, debts: DebtRef[]): VoiceAction[] {
         id,
         kind: "natillera",
         title: "Cuota de la natillera",
-        amount: amount ?? 20000,
+        amount: amount ?? opts.natilleraQuota,
         method: payFor(),
       };
     } else if (/retir/i.test(c)) {
@@ -195,7 +215,7 @@ export function parseVoice(text: string, debts: DebtRef[]): VoiceAction[] {
         title: `${who} me debe`,
         person: who,
         amount,
-        method: pay ?? "Nequi",
+        method: pay,
       };
     } else if (
       /abon|cr[eé]dito|deuda|cuota del|tarjeta de cr[eé]dito/i.test(c) &&
@@ -222,7 +242,7 @@ export function parseVoice(text: string, debts: DebtRef[]): VoiceAction[] {
             ? "Efectivo"
             : pay && pay !== "Tarjeta de crédito"
               ? pay
-              : "Nequi"
+              : undefined
           : payFor();
       a = {
         id,
@@ -263,7 +283,7 @@ export function parseVoice(text: string, debts: DebtRef[]): VoiceAction[] {
         kind: "ingreso",
         title: "Ingreso",
         amount,
-        method: pay ?? "Bancolombia",
+        method: pay,
         category: "Trabajo",
       };
     } else if (amount) {

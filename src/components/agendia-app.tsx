@@ -467,7 +467,7 @@ export function AgendiaApp({ view }: { view: View }) {
     date: today(),
     time: "15:00",
     place: "",
-    method: "Nequi",
+    method: "",
     category: "Alimentación",
     store: "",
   });
@@ -540,7 +540,7 @@ export function AgendiaApp({ view }: { view: View }) {
       date: today(),
       time: "15:00",
       place: "",
-      method: "Nequi",
+      method: "",
       category: "Alimentación",
       store: "",
     });
@@ -579,6 +579,10 @@ export function AgendiaApp({ view }: { view: View }) {
       const amount = Number(form.amount);
       if (!amount || amount < 0) {
         setToast("Ingresa un monto válido");
+        return;
+      }
+      if (!form.method) {
+        setToast(dialog === "ingreso" ? "Elige dónde lo recibiste" : "Elige cómo se pagó");
         return;
       }
       update({
@@ -620,7 +624,7 @@ export function AgendiaApp({ view }: { view: View }) {
           id,
           title: a.title,
           amount: a.amount ?? 0,
-          method: a.method ?? "Nequi",
+          method: a.method ?? "Efectivo",
           category,
           kind,
           date: today(),
@@ -2091,7 +2095,7 @@ export function AgendiaApp({ view }: { view: View }) {
                     bills={data.bills}
                     today={today()}
                     onSave={(b) => update({ bills: b })}
-                    onExpense={(b) =>
+                    onExpense={(b, method) =>
                       setData((p) => ({
                         ...p,
                         movements: [
@@ -2099,7 +2103,7 @@ export function AgendiaApp({ view }: { view: View }) {
                             id: Date.now(),
                             title: b.store,
                             amount: b.total,
-                            method: "Nequi",
+                            method,
                             category: b.category,
                             kind: "gasto",
                             date: b.date,
@@ -2252,14 +2256,19 @@ export function AgendiaApp({ view }: { view: View }) {
                         />
                       </label>
                       <label>
-                        ¿Cómo se pagó?
+                        {dialog === "ingreso" ? "¿Dónde lo recibiste?" : "¿Cómo se pagó?"}
                         <select
                           value={form.method}
                           onChange={(e) => setForm({ ...form, method: e.target.value })}
                         >
-                          {["Nequi", "Bancolombia", "Bre-B", "Efectivo", "Tarjeta"].map((m) => (
-                            <option key={m}>{m}</option>
-                          ))}
+                          <option value="" disabled>
+                            Elige una opción
+                          </option>
+                          {["Nequi", "Bancolombia", "Bre-B", "Efectivo", "Tarjeta"]
+                            .filter((m) => dialog !== "ingreso" || m !== "Tarjeta")
+                            .map((m) => (
+                              <option key={m}>{m}</option>
+                            ))}
                         </select>
                       </label>
                       {dialog === "gasto" && (
@@ -2564,7 +2573,12 @@ export function AgendiaApp({ view }: { view: View }) {
           </div>
         )}
         {voiceOpen && (
-          <VoiceSheet debts={data.debts} onClose={() => setVoiceOpen(false)} onSave={saveVoice} />
+          <VoiceSheet
+            debts={data.debts}
+            natilleraQuota={20000}
+            onClose={() => setVoiceOpen(false)}
+            onSave={saveVoice}
+          />
         )}
         {toast && !undo && (
           <div className="toast-message" role="status">

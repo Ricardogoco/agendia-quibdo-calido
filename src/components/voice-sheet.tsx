@@ -15,7 +15,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { parseVoice, sectionLabel, type DebtRef, type VoiceAction } from "@/lib/voice-parser";
+import {
+  needsMethod,
+  parseVoice,
+  paymentMethods,
+  sectionLabel,
+  type DebtRef,
+  type VoiceAction,
+} from "@/lib/voice-parser";
 
 const examples = [
   "Anota que debo programar una reunión con Víctor a las 3 pm en el salón Fiama",
@@ -45,13 +52,18 @@ const clock = (t: string) =>
     .toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true })
     .toLowerCase();
 const dayText = { hoy: "Hoy", manana: "Mañana", pasado: "Pasado mañana" } as const;
+const moneyKinds = ["gasto", "retiro", "abono", "prestamo", "meta", "ingreso", "natillera"];
+const methodLabel = (m: string) =>
+  m === "Bre-B" ? "Bancolombia · Bre-B" : m === "Tarjeta de crédito" ? "Tarjeta" : m;
 
 export function VoiceSheet({
   debts,
+  natilleraQuota,
   onClose,
   onSave,
 }: {
   debts: DebtRef[];
+  natilleraQuota?: number | undefined;
   onClose: () => void;
   onSave: (a: VoiceAction[]) => void;
 }) {
@@ -67,7 +79,7 @@ export function VoiceSheet({
   );
 
   const understand = (phrase: string) => {
-    if (phrase.trim()) setActions(parseVoice(phrase, debts));
+    if (phrase.trim()) setActions(parseVoice(phrase, debts, { natilleraQuota }));
   };
   const dictate = (phrase: string) => {
     if (timer.current) clearInterval(timer.current);
@@ -95,7 +107,8 @@ export function VoiceSheet({
     (a) =>
       (a.kind === "evento" && !a.day) ||
       (a.kind === "compra" && !a.item?.trim()) ||
-      (["gasto", "retiro", "abono", "prestamo", "meta", "ingreso"].includes(a.kind) && !a.amount),
+      (moneyKinds.includes(a.kind) && !a.amount) ||
+      (needsMethod(a) && !a.method),
   );
 
   const facts = (a: VoiceAction) => {
@@ -103,8 +116,7 @@ export function VoiceSheet({
     if (a.amount) f.push(["Monto", money(a.amount)]);
     if (a.person) f.push(["Persona", a.person]);
     if (a.category && a.kind === "gasto") f.push(["Categoría", a.category]);
-    if (a.method)
-      f.push(["Forma de pago", a.method === "Bre-B" ? "Bancolombia · Bre-B" : a.method]);
+    if (a.method) f.push(["Forma de pago", methodLabel(a.method)]);
     if (a.day) f.push(["Fecha", dayText[a.day]]);
     if (a.time && a.kind === "evento") f.push(["Hora", clock(a.time)]);
     if (a.place) f.push(["Lugar", a.place]);
@@ -228,24 +240,41 @@ export function VoiceSheet({
                         />
                       </div>
                     )}
-                    {["gasto", "retiro", "abono", "prestamo", "meta", "ingreso"].includes(a.kind) &&
-                      !a.amount && (
-                        <div className="voice-ask">
-                          <p>¿De cuánto?</p>
-                          <Input
-                            inputMode="numeric"
-                            placeholder="Ej: 50000"
-                            onChange={(e) => {
-                              const n = Number(e.target.value.replace(/\D/g, ""));
-                              patch(a.id, {
-                                amount: n || undefined,
-                                quota: a.kind === "meta" && n ? Math.round(n / 12) : a.quota,
-                              });
-                            }}
-                            className="h-11"
-                          />
+                    {moneyKinds.includes(a.kind) && !a.amount && (
+                      <div className="voice-ask">
+                        <p>¿De cuánto?</p>
+                        <Input
+                          inputMode="numeric"
+                          placeholder="Ej: 50000"
+                          onChange={(e) => {
+                            const n = Number(e.target.value.replace(/\D/g, ""));
+                            patch(a.id, {
+                              amount: n || undefined,
+                              quota: a.kind === "meta" && n ? Math.round(n / 12) : a.quota,
+                            });
+                          }}
+                          className="h-11"
+                        />
+                      </div>
+                    )}
+                    {needsMethod(a) && !a.method && (
+                      <div className="voice-ask">
+                        <p>{a.kind === "ingreso" ? "¿Dónde lo recibiste?" : "¿Cómo pagaste?"}</p>
+                        <div>
+                          {paymentMethods
+                            .filter((m) => a.kind !== "ingreso" || m !== "Tarjeta de crédito")
+                            .map((m) => (
+                              <Button
+                                key={m}
+                                variant="outline"
+                                onClick={() => patch(a.id, { method: m })}
+                              >
+                                {m === "Tarjeta de crédito" ? "Tarjeta" : m}
+                              </Button>
+                            ))}
                         </div>
-                      )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
