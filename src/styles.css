@@ -398,3 +398,4 @@ section { margin-top:26px; }
 .local-notice { display:flex; align-items:flex-start; gap:8px; padding:12px; margin-bottom:18px; border-left:3px solid var(--brand-coral); background:var(--muted); color:var(--foreground); font-size:12px; line-height:1.4; }
 .local-notice svg { flex:none; color:var(--brand-coral); }
 @media(min-width:600px) { .modal-backdrop { position:fixed; top:37px; bottom:auto; left:50%; right:auto; width:376px; height:min(830px,calc(100dvh - 74px)); margin-top:0; transform:translateX(-50%); border-radius:28px; overflow:hidden; } }
+.wa-howto { margin:14px 0 0; padding-left:18px; list-style:disc; display:grid; gap:6px; font-size:13px; color:var(--muted-foreground); }

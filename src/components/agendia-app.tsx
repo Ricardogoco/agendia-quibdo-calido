@@ -48,6 +48,7 @@ import { Switch } from "@/components/ui/switch";
 import mark from "@/assets/agendia-mark.webp";
 import logo from "@/assets/agendia-logo.webp";
 import { VoiceSheet } from "@/components/voice-sheet";
+import { DEMO_MODE } from "@/config/demo";
 import type { VoiceAction } from "@/lib/voice-parser";
 import {
   ReminderSheet,
@@ -100,7 +101,8 @@ type Movement = {
   amount: number;
   method: string;
   category: string;
-  kind: "ingreso" | "gasto" | "retiro" | "prestamo";
+  // "ahorro": dinero que sale de una cuenta hacia la natillera (no cuenta como gasto).
+  kind: "ingreso" | "gasto" | "retiro" | "prestamo" | "ahorro";
   date: string;
 };
 type DebtItem = {
@@ -129,6 +131,22 @@ type SavingsContribution = {
   date: string;
 };
 type StoredFile = { name: string; url: string };
+type Rent = { amount: number; day: number; landlord: string };
+type NatilleraFrequency = "semanal" | "quincenal" | "mensual";
+type Natillera = {
+  name: string;
+  members: number;
+  quota: number;
+  frequency: NatilleraFrequency;
+  settlement: string;
+  method: string;
+};
+type Budget = { name: string; limit: number };
+const frequencyDays: Record<NatilleraFrequency, number> = {
+  semanal: 7,
+  quincenal: 15,
+  mensual: 30,
+};
 type AppData = {
   name: string;
   tone: string;
@@ -161,6 +179,11 @@ type AppData = {
   pendingSync: number;
   eventAlerts: Record<number, AlertCfg>;
   payAlerts: number[];
+  /** Saldo inicial de cada cuenta, antes de los movimientos registrados en la app. */
+  accounts: { Bancolombia: number; Nequi: number; Efectivo: number };
+  rent: Rent | null;
+  natillera: Natillera | null;
+  budgets: Budget[];
 };
 const today = () =>
   new Intl.DateTimeFormat("en-CA", {
@@ -183,8 +206,8 @@ const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", ...options }).format(
     new Date(`${date}T12:00:00`),
   );
-const initialData = (): AppData => ({
-  name: "Ricardo",
+const emptyData = (): AppData => ({
+  name: "",
   tone: "Cercano",
   categories: ["Finanzas", "Bíblicas", "Filosofía"],
   frequency: "Una vez al día",
@@ -192,6 +215,38 @@ const initialData = (): AppData => ({
   offline: false,
   onboarded: false,
   reminders: "1 día, 1 hora y 15 min antes",
+  events: [],
+  tasks: [],
+  groceries: [],
+  movements: [],
+  quoteQueue: [],
+  quoteIndex: 0,
+  lastQuoteAt: Date.now(),
+  savedQuotes: [],
+  recordings: [],
+  invoices: [],
+  natilleraPayments: 0,
+  debts: [],
+  goals: [],
+  meetings: [],
+  bills: [],
+  notes: [],
+  pqrs: [],
+  savingsContributions: [],
+  plan: "Gratis",
+  usage: { voice: 0, questions: 0, recordings: 0 },
+  pendingSync: 0,
+  eventAlerts: {},
+  payAlerts: [7, 3, 1, 0],
+  accounts: { Bancolombia: 0, Nequi: 0, Efectivo: 0 },
+  rent: null,
+  natillera: null,
+  budgets: [],
+});
+/** Datos de ejemplo: solo se cargan en modo demostración (ver src/config/demo.ts). */
+const demoData = (): AppData => ({
+  ...emptyData(),
+  name: "Ricardo",
   events: [
     {
       id: 1,
@@ -266,13 +321,6 @@ const initialData = (): AppData => ({
       date: addDays(today(), -1),
     },
   ],
-  quoteQueue: [],
-  quoteIndex: 0,
-  lastQuoteAt: Date.now(),
-  savedQuotes: [],
-  recordings: [],
-  invoices: [],
-  natilleraPayments: 0,
   debts: [
     {
       id: 1,
@@ -302,16 +350,26 @@ const initialData = (): AppData => ({
     { id: 2, name: "Fondo de emergencias", target: 2000000, saved: 500000, quota: 62500 },
   ],
   meetings: [{ ...sampleMeeting(addDays(today(), -3), "09:12"), id: 1 }],
-  bills: [],
-  notes: [],
-  pqrs: [],
-  savingsContributions: [],
-  plan: "Gratis",
   usage: { voice: 4, questions: 2, recordings: 0 },
-  pendingSync: 0,
-  eventAlerts: {},
-  payAlerts: [7, 3, 1, 0],
+  // Saldos base de las cuentas (ya incluyen los movimientos de ejemplo de arriba).
+  accounts: { Bancolombia: 1800000, Nequi: 597000, Efectivo: 200000 },
+  rent: { amount: 850000, day: 30, landlord: "Sra. Yolanda Mosquera" },
+  natillera: {
+    name: "Natillera de la oficina",
+    members: 18,
+    quota: 20000,
+    frequency: "semanal",
+    settlement: "Diciembre",
+    method: "Nequi",
+  },
+  budgets: [
+    { name: "Alimentación", limit: 500000 },
+    { name: "Hogar", limit: 350000 },
+    { name: "Transporte", limit: 200000 },
+    { name: "Otros", limit: 250000 },
+  ],
 });
+const initialData = (): AppData => (DEMO_MODE ? demoData() : emptyData());
 const quotes = [
   {
     text: "Encomienda a Jehová tus obras, y tus pensamientos serán afirmados.",
@@ -450,6 +508,19 @@ export function AgendiaApp({ view }: { view: View }) {
   const [contributionDraft, setContributionDraft] = useState<{
     goalId: number;
     amount: string;
+    method: string;
+  } | null>(null);
+  const [rentDraft, setRentDraft] = useState<{
+    amount: string;
+    day: string;
+    landlord: string;
+  } | null>(null);
+  const [natilleraDraft, setNatilleraDraft] = useState<{
+    name: string;
+    members: string;
+    quota: string;
+    frequency: NatilleraFrequency;
+    settlement: string;
     method: string;
   } | null>(null);
   const [pqrsDraft, setPqrsDraft] = useState({
@@ -688,7 +759,10 @@ export function AgendiaApp({ view }: { view: View }) {
               },
             ];
       }
-      if (a.kind === "natillera") d.natilleraPayments += 1;
+      if (a.kind === "natillera") {
+        mv("ahorro", "Natillera");
+        d.natilleraPayments += 1;
+      }
       if (a.kind === "meta")
         d.goals.push({ id, name: a.title, target: a.amount ?? 0, saved: 0, quota: a.quota ?? 0 });
     });
@@ -769,6 +843,70 @@ export function AgendiaApp({ view }: { view: View }) {
     }));
     setContributionDraft(null);
     setToast("Aporte registrado");
+  };
+  const openRentForm = (r: Rent | null) =>
+    setRentDraft({
+      amount: r ? String(r.amount) : "",
+      day: r ? String(r.day) : "",
+      landlord: r?.landlord ?? "",
+    });
+  const saveRent = () => {
+    if (!rentDraft) return;
+    const amount = Number(rentDraft.amount),
+      day = Number(rentDraft.day);
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      setToast("Ingresa el valor del arriendo");
+      return;
+    }
+    if (!Number.isInteger(day) || day < 1 || day > 31) {
+      setToast("Escribe un día de pago entre 1 y 31");
+      return;
+    }
+    update({ rent: { amount, day, landlord: rentDraft.landlord.trim().slice(0, 80) } });
+    setRentDraft(null);
+    setToast("Arriendo guardado");
+  };
+  const openNatilleraForm = (n: Natillera | null) =>
+    setNatilleraDraft({
+      name: n?.name ?? "",
+      members: n?.members ? String(n.members) : "",
+      quota: n ? String(n.quota) : "",
+      frequency: n?.frequency ?? "semanal",
+      settlement: n?.settlement ?? "",
+      method: n?.method ?? "",
+    });
+  const saveNatillera = () => {
+    if (!natilleraDraft) return;
+    const quota = Number(natilleraDraft.quota),
+      members = Number(natilleraDraft.members || 0);
+    if (!natilleraDraft.name.trim()) {
+      setToast("Escribe el nombre de la natillera");
+      return;
+    }
+    if (!Number.isSafeInteger(quota) || quota <= 0) {
+      setToast("Ingresa el valor de la cuota");
+      return;
+    }
+    if (!Number.isInteger(members) || members < 0) {
+      setToast("Escribe un número de miembros válido");
+      return;
+    }
+    if (!natilleraDraft.method) {
+      setToast("Elige desde dónde pagas la cuota");
+      return;
+    }
+    update({
+      natillera: {
+        name: natilleraDraft.name.trim().slice(0, 80),
+        members,
+        quota,
+        frequency: natilleraDraft.frequency,
+        settlement: natilleraDraft.settlement.trim().slice(0, 40),
+        method: natilleraDraft.method,
+      },
+    });
+    setNatilleraDraft(null);
+    setToast("Natillera guardada");
   };
   const saveNote = () => {
     if (!noteDraft) return;
@@ -894,9 +1032,27 @@ export function AgendiaApp({ view }: { view: View }) {
       }, 0);
   const savedFrom = (method: string) =>
     data.savingsContributions.reduce((sum, c) => sum + (c.method === method ? c.amount : 0), 0);
-  const balBanco = bal("Bancolombia", 1800000) - savedFrom("Bancolombia"),
-    balNequi = bal("Nequi", 597000) - data.natilleraPayments * 20000 - savedFrom("Nequi"),
-    balCash = bal("Efectivo", 200000) - savedFrom("Efectivo");
+  const balBanco = bal("Bancolombia", data.accounts.Bancolombia) - savedFrom("Bancolombia"),
+    balNequi = bal("Nequi", data.accounts.Nequi) - savedFrom("Nequi"),
+    balCash = bal("Efectivo", data.accounts.Efectivo) - savedFrom("Efectivo");
+  const upcomingPayments = data.rent ? 1 : 0;
+  const payNatillera = (n: Natillera, method: string, title = "Cuota de la natillera") =>
+    setData((p) => ({
+      ...p,
+      natilleraPayments: p.natilleraPayments + 1,
+      movements: [
+        {
+          id: Date.now(),
+          title,
+          amount: n.quota,
+          method,
+          category: "Natillera",
+          kind: "ahorro",
+          date: today(),
+        },
+        ...p.movements,
+      ],
+    }));
   const available = balBanco + balNequi + balCash;
   const sortedEvents = [...data.events].sort((a, b) =>
     (a.date + a.time).localeCompare(b.date + b.time),
@@ -1071,8 +1227,11 @@ export function AgendiaApp({ view }: { view: View }) {
                     </h1>
                     <p>
                       Hoy tienes {data.events.filter((e) => e.date === today()).length} compromiso
-                      {data.events.filter((e) => e.date === today()).length === 1 ? "" : "s"} y 1
-                      pago en camino.{" "}
+                      {data.events.filter((e) => e.date === today()).length === 1 ? "" : "s"}
+                      {upcomingPayments
+                        ? ` y ${upcomingPayments} pago${upcomingPayments === 1 ? "" : "s"} en camino`
+                        : ""}
+                      .{" "}
                       {data.tone === "Cercano" ? "Vamos con toda." : "Que tengas un excelente día."}
                     </p>
                   </div>
@@ -1107,7 +1266,7 @@ export function AgendiaApp({ view }: { view: View }) {
                     </div>
                     <div>
                       <span>PAGOS</span>
-                      <strong>01</strong>
+                      <strong>{upcomingPayments.toString().padStart(2, "0")}</strong>
                       <CreditCard />
                     </div>
                     <div>
@@ -1285,24 +1444,31 @@ export function AgendiaApp({ view }: { view: View }) {
                       action="Ver finanzas"
                       onAction={() => go("finanzas")}
                     />
-                    <div className="payment-row">
-                      <div className="payment-icon">
-                        <Home />
+                    {data.rent ? (
+                      <div className="payment-row">
+                        <div className="payment-icon">
+                          <Home />
+                        </div>
+                        <div>
+                          <strong>Arriendo</strong>
+                          <span>
+                            Próximo día {data.rent.day}
+                            {data.rent.landlord ? ` · ${data.rent.landlord}` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            className="pay-alerts"
+                            onClick={() => setReminderFor("arriendo")}
+                          >
+                            <Bell className="size-3" /> Avisos{" "}
+                            {data.payAlerts.map((n) => (n === 0 ? "el día" : `${n}d`)).join(" · ")}
+                          </button>
+                        </div>
+                        <strong>{money(data.rent.amount)}</strong>
                       </div>
-                      <div>
-                        <strong>Arriendo</strong>
-                        <span>Próximo día 30 · Sra. Yolanda Mosquera</span>
-                        <button
-                          type="button"
-                          className="pay-alerts"
-                          onClick={() => setReminderFor("arriendo")}
-                        >
-                          <Bell className="size-3" /> Avisos{" "}
-                          {data.payAlerts.map((n) => (n === 0 ? "el día" : `${n}d`)).join(" · ")}
-                        </button>
-                      </div>
-                      <strong>{money(850000)}</strong>
-                    </div>
+                    ) : (
+                      <Empty>Aún no registras tu arriendo. Agrégalo en Finanzas › Arriendo.</Empty>
+                    )}
                   </section>
                 </>
               )}
@@ -1535,12 +1701,10 @@ export function AgendiaApp({ view }: { view: View }) {
                       <div
                         className={`budget-list ${hasFeature(data.plan, "presupuestos") ? "" : "hidden"}`}
                       >
-                        {[
-                          { name: "Alimentación", limit: 500000 },
-                          { name: "Hogar", limit: 350000 },
-                          { name: "Transporte", limit: 200000 },
-                          { name: "Otros", limit: 250000 },
-                        ].map((c) => {
+                        {!data.budgets.length && (
+                          <Empty>Aún no defines presupuestos para este mes.</Empty>
+                        )}
+                        {data.budgets.map((c) => {
                           const spent = data.movements
                             .filter(
                               (m) =>
@@ -1614,38 +1778,71 @@ export function AgendiaApp({ view }: { view: View }) {
                   {financeTab === "Ahorro" && (
                     <>
                       <SectionTitle title="Mis natilleras" />
-                      <div className="detail-card">
-                        <div className="detail-icon">
-                          <PiggyBank />
-                        </div>
-                        <h3>Natillera de la oficina</h3>
-                        <p>18 miembros · Cuota semanal de {money(20000)}</p>
-                        <div className="detail-facts">
-                          <div>
-                            <span>Próxima cuota</span>
-                            <strong>
-                              {formatDate(addDays(today(), 7), { day: "numeric", month: "short" })}
-                            </strong>
-                          </div>
-                          <div>
-                            <span>Liquidación</span>
-                            <strong>Diciembre</strong>
-                          </div>
-                          <div>
-                            <span>Cuotas pagadas</span>
-                            <strong>{data.natilleraPayments}</strong>
-                          </div>
-                        </div>
-                        <Button
-                          className="w-full h-11"
-                          onClick={() => {
-                            update({ natilleraPayments: data.natilleraPayments + 1 });
-                            setToast("Cuota registrada como pagada");
-                          }}
-                        >
-                          Pagar cuota <ArrowUpRight />
-                        </Button>
-                      </div>
+                      {data.natillera ? (
+                        (() => {
+                          const n = data.natillera;
+                          return (
+                            <div className="detail-card">
+                              <div className="detail-icon">
+                                <PiggyBank />
+                              </div>
+                              <h3>{n.name}</h3>
+                              <p>
+                                {n.members
+                                  ? `${n.members} miembro${n.members === 1 ? "" : "s"} · `
+                                  : ""}
+                                Cuota {n.frequency} de {money(n.quota)}
+                              </p>
+                              <div className="detail-facts">
+                                <div>
+                                  <span>Próxima cuota</span>
+                                  <strong>
+                                    {formatDate(addDays(today(), frequencyDays[n.frequency]), {
+                                      day: "numeric",
+                                      month: "short",
+                                    })}
+                                  </strong>
+                                </div>
+                                <div>
+                                  <span>Liquidación</span>
+                                  <strong>{n.settlement || "Sin definir"}</strong>
+                                </div>
+                                <div>
+                                  <span>Cuotas pagadas</span>
+                                  <strong>{data.natilleraPayments}</strong>
+                                </div>
+                              </div>
+                              <Button
+                                className="w-full h-11"
+                                onClick={() => {
+                                  payNatillera(n, n.method);
+                                  setToast("Cuota registrada como pagada");
+                                }}
+                              >
+                                Pagar cuota <ArrowUpRight />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="w-full h-9 mt-1 text-primary"
+                                onClick={() => openNatilleraForm(n)}
+                              >
+                                <Pencil className="size-4" /> Editar natillera
+                              </Button>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <>
+                          <Empty>Aún no tienes natilleras.</Empty>
+                          <Button
+                            variant="outline"
+                            className="w-full h-11 mb-4"
+                            onClick={() => openNatilleraForm(null)}
+                          >
+                            <Plus /> Agregar natillera
+                          </Button>
+                        </>
+                      )}
                       <div className="section-heading">
                         <h2>Metas de ahorro</h2>
                         <Button
@@ -1716,35 +1913,55 @@ export function AgendiaApp({ view }: { view: View }) {
                   {financeTab === "Arriendo" && (
                     <>
                       <SectionTitle title="Mi arriendo" />
-                      <div className="detail-card">
-                        <div className="detail-icon">
-                          <Home />
+                      {data.rent ? (
+                        <div className="detail-card">
+                          <div className="detail-icon">
+                            <Home />
+                          </div>
+                          <span className="eyebrow">PAGO MENSUAL</span>
+                          <h3 className="large-amount">{money(data.rent.amount)}</h3>
+                          <div className="detail-facts">
+                            <div>
+                              <span>Día de pago</span>
+                              <strong>{data.rent.day} de cada mes</strong>
+                            </div>
+                            <div>
+                              <span>Arrendador(a)</span>
+                              <strong>{data.rent.landlord || "Sin nombre"}</strong>
+                            </div>
+                            <div>
+                              <span>Estado</span>
+                              <strong className="text-success">Pendiente</strong>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            className="w-full h-11"
+                            onClick={() => setReminderFor("arriendo")}
+                          >
+                            <Bell /> Avisos{" "}
+                            {data.payAlerts.map((n) => (n === 0 ? "el día" : `${n}d`)).join(" · ")}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="w-full h-9 mt-1 text-primary"
+                            onClick={() => openRentForm(data.rent)}
+                          >
+                            <Pencil className="size-4" /> Editar arriendo
+                          </Button>
                         </div>
-                        <span className="eyebrow">PAGO MENSUAL</span>
-                        <h3 className="large-amount">{money(850000)}</h3>
-                        <div className="detail-facts">
-                          <div>
-                            <span>Día de pago</span>
-                            <strong>30 de cada mes</strong>
-                          </div>
-                          <div>
-                            <span>Arrendadora</span>
-                            <strong>Sra. Yolanda Mosquera</strong>
-                          </div>
-                          <div>
-                            <span>Estado</span>
-                            <strong className="text-success">Pendiente</strong>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="w-full h-11"
-                          onClick={() => setReminderFor("arriendo")}
-                        >
-                          <Bell /> Avisos{" "}
-                          {data.payAlerts.map((n) => (n === 0 ? "el día" : `${n}d`)).join(" · ")}
-                        </Button>
-                      </div>
+                      ) : (
+                        <>
+                          <Empty>Aún no registras tu arriendo.</Empty>
+                          <Button
+                            variant="outline"
+                            className="w-full h-11 mb-4"
+                            onClick={() => openRentForm(null)}
+                          >
+                            <Plus /> Registrar arriendo
+                          </Button>
+                        </>
+                      )}
                       <SectionTitle title="Historial" />
                       <Empty>Aún no hay pagos de arriendo registrados.</Empty>
                     </>
@@ -2041,7 +2258,9 @@ export function AgendiaApp({ view }: { view: View }) {
                     className="w-full h-11 mt-8 text-destructive"
                     onClick={() => {
                       if (window.confirm("¿Restablecer todos los datos de AgendIA?")) {
-                        setData({ ...initialData(), onboarded: true });
+                        // En modo demo se vuelve a los datos de ejemplo; en lanzamiento se
+                        // empieza de cero y se vuelve a preguntar el nombre.
+                        setData({ ...initialData(), onboarded: DEMO_MODE });
                         setToast("Datos restablecidos");
                       }
                     }}
@@ -2081,6 +2300,7 @@ export function AgendiaApp({ view }: { view: View }) {
                       movements: data.movements,
                       meetings: data.meetings,
                       debts: data.debts,
+                      rent: data.rent,
                       available,
                     }}
                     gate={gate}
@@ -2293,7 +2513,7 @@ export function AgendiaApp({ view }: { view: View }) {
                         <Input
                           value={form.place}
                           onChange={(e) => setForm({ ...form, place: e.target.value })}
-                          placeholder="Ej. Salón Fiama"
+                          placeholder="Ej. Oficina"
                         />
                       </label>
                       <label>
@@ -2354,15 +2574,17 @@ export function AgendiaApp({ view }: { view: View }) {
               />
             ) : null;
           })()}
-        {reminderFor === "arriendo" && (
+        {reminderFor === "arriendo" && data.rent && (
           <PaymentReminderSheet
-            title={`Arriendo · ${money(850000)} · día 30`}
+            title={`Arriendo · ${money(data.rent.amount)} · día ${data.rent.day}`}
             initial={data.payAlerts}
             onClose={() => setReminderFor(null)}
             onTest={() =>
               setAlarm({
                 title: "Pago del arriendo",
-                subtitle: `${money(850000)} para la Sra. Yolanda Mosquera`,
+                subtitle: data.rent
+                  ? `${money(data.rent.amount)}${data.rent.landlord ? ` para ${data.rent.landlord}` : ` · día ${data.rent.day}`}`
+                  : "",
               })
             }
             onSave={(d) => {
@@ -2517,6 +2739,206 @@ export function AgendiaApp({ view }: { view: View }) {
             </div>
           </div>
         )}
+        {rentDraft && (
+          <div className="modal-backdrop" onClick={() => setRentDraft(null)}>
+            <div
+              className="modal-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mi arriendo"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-head">
+                <h2>{data.rent ? "Editar arriendo" : "Registrar arriendo"}</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Cerrar"
+                  onClick={() => setRentDraft(null)}
+                >
+                  <X />
+                </Button>
+              </div>
+              <div className="modal-form">
+                <label>
+                  Valor mensual
+                  <Input
+                    autoFocus
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={rentDraft.amount}
+                    onChange={(e) => setRentDraft({ ...rentDraft, amount: e.target.value })}
+                    placeholder="Monto en pesos"
+                  />
+                </label>
+                <label>
+                  Día de pago
+                  <Input
+                    type="number"
+                    min="1"
+                    max="31"
+                    inputMode="numeric"
+                    value={rentDraft.day}
+                    onChange={(e) => setRentDraft({ ...rentDraft, day: e.target.value })}
+                    placeholder="Ej. 5"
+                  />
+                </label>
+                <label>
+                  ¿A quién le pagas? (opcional)
+                  <Input
+                    maxLength={80}
+                    value={rentDraft.landlord}
+                    onChange={(e) => setRentDraft({ ...rentDraft, landlord: e.target.value })}
+                    placeholder="Nombre del arrendador"
+                  />
+                </label>
+                <Button className="h-12" onClick={saveRent}>
+                  <Save /> Guardar arriendo
+                </Button>
+                {data.rent && (
+                  <Button
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => {
+                      if (window.confirm("¿Quitar tu arriendo?")) {
+                        update({ rent: null });
+                        setRentDraft(null);
+                      }
+                    }}
+                  >
+                    <Trash2 /> Quitar arriendo
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {natilleraDraft && (
+          <div className="modal-backdrop" onClick={() => setNatilleraDraft(null)}>
+            <div
+              className="modal-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mi natillera"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-head">
+                <h2>{data.natillera ? "Editar natillera" : "Agregar natillera"}</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Cerrar"
+                  onClick={() => setNatilleraDraft(null)}
+                >
+                  <X />
+                </Button>
+              </div>
+              <div className="modal-form">
+                <label>
+                  Nombre
+                  <Input
+                    autoFocus
+                    maxLength={80}
+                    value={natilleraDraft.name}
+                    onChange={(e) => setNatilleraDraft({ ...natilleraDraft, name: e.target.value })}
+                    placeholder="Ej. Natillera del trabajo"
+                  />
+                </label>
+                <div className="two-col">
+                  <label>
+                    Cuota
+                    <Input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      value={natilleraDraft.quota}
+                      onChange={(e) =>
+                        setNatilleraDraft({ ...natilleraDraft, quota: e.target.value })
+                      }
+                      placeholder="Monto en pesos"
+                    />
+                  </label>
+                  <label>
+                    Frecuencia
+                    <select
+                      value={natilleraDraft.frequency}
+                      onChange={(e) =>
+                        setNatilleraDraft({
+                          ...natilleraDraft,
+                          frequency: e.target.value as NatilleraFrequency,
+                        })
+                      }
+                    >
+                      <option value="semanal">Semanal</option>
+                      <option value="quincenal">Quincenal</option>
+                      <option value="mensual">Mensual</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="two-col">
+                  <label>
+                    Miembros (opcional)
+                    <Input
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      value={natilleraDraft.members}
+                      onChange={(e) =>
+                        setNatilleraDraft({ ...natilleraDraft, members: e.target.value })
+                      }
+                      placeholder="0"
+                    />
+                  </label>
+                  <label>
+                    Liquidación (opcional)
+                    <Input
+                      maxLength={40}
+                      value={natilleraDraft.settlement}
+                      onChange={(e) =>
+                        setNatilleraDraft({ ...natilleraDraft, settlement: e.target.value })
+                      }
+                      placeholder="Ej. Diciembre"
+                    />
+                  </label>
+                </div>
+                <label>
+                  ¿Desde dónde pagas la cuota?
+                  <select
+                    value={natilleraDraft.method}
+                    onChange={(e) =>
+                      setNatilleraDraft({ ...natilleraDraft, method: e.target.value })
+                    }
+                  >
+                    <option value="" disabled>
+                      Elige una opción
+                    </option>
+                    <option>Nequi</option>
+                    <option>Bancolombia</option>
+                    <option>Efectivo</option>
+                  </select>
+                </label>
+                <Button className="h-12" onClick={saveNatillera}>
+                  <Save /> Guardar natillera
+                </Button>
+                {data.natillera && (
+                  <Button
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => {
+                      if (window.confirm("¿Quitar esta natillera?")) {
+                        update({ natillera: null });
+                        setNatilleraDraft(null);
+                      }
+                    }}
+                  >
+                    <Trash2 /> Quitar natillera
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {contributionDraft && (
           <div className="modal-backdrop" onClick={() => setContributionDraft(null)}>
             <div
@@ -2575,7 +2997,7 @@ export function AgendiaApp({ view }: { view: View }) {
         {voiceOpen && (
           <VoiceSheet
             debts={data.debts}
-            natilleraQuota={20000}
+            natilleraQuota={data.natillera?.quota}
             onClose={() => setVoiceOpen(false)}
             onSave={saveVoice}
           />

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DEMO_MODE } from "@/config/demo";
 import {
   needsMethod,
   parseVoice,
@@ -24,6 +25,7 @@ import {
   type VoiceAction,
 } from "@/lib/voice-parser";
 
+// Frases de ejemplo: solo se muestran (y se "dictan" solas) en modo demostración.
 const examples = [
   "Anota que debo programar una reunión con Víctor a las 3 pm en el salón Fiama",
   "Debo retirar 500.000 y pagarle 30.000 a mi madre, abonar 50.000 al crédito del teléfono",
@@ -70,6 +72,7 @@ export function VoiceSheet({
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
   const [actions, setActions] = useState<VoiceAction[] | null>(null);
+  const [hint, setHint] = useState("");
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(
     () => () => {
@@ -99,7 +102,14 @@ export function VoiceSheet({
   };
   const micTap = () => {
     if (typing) return;
-    dictate(text.trim() || examples[Math.floor(Math.random() * examples.length)]!);
+    if (DEMO_MODE) {
+      dictate(text.trim() || examples[Math.floor(Math.random() * examples.length)]!);
+      return;
+    }
+    // Sin modo demo todavía no hay dictado real: no se inventa ninguna frase.
+    if (text.trim()) understand(text);
+    else
+      setHint("El dictado por voz aún no está disponible. Escribe abajo lo que necesitas anotar.");
   };
   const patch = (id: string, p: Partial<VoiceAction>) =>
     setActions((a) => a?.map((x) => (x.id === id ? { ...x, ...p } : x)) ?? null);
@@ -155,13 +165,20 @@ export function VoiceSheet({
                 <span />
                 <Mic />
               </button>
-              <p>{typing ? "Te escucho…" : "Toca el micrófono y habla, o escribe abajo"}</p>
+              <p role="status">
+                {typing ? "Te escucho…" : hint || "Toca el micrófono y habla, o escribe abajo"}
+              </p>
             </div>
             <div className="voice-input">
               <Input
                 value={text}
-                placeholder="Ej: Pagué 25 mil de mercado por Nequi"
-                onChange={(e) => setText(e.target.value)}
+                placeholder={
+                  DEMO_MODE ? "Ej: Pagué 25 mil de mercado por Nequi" : "Dime qué necesitas anotar"
+                }
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setHint("");
+                }}
                 onKeyDown={(e) => e.key === "Enter" && understand(text)}
                 className="h-12"
               />
@@ -173,14 +190,18 @@ export function VoiceSheet({
                 Entender
               </Button>
             </div>
-            <span className="eyebrow voice-eyebrow">PRUEBA DECIR</span>
-            <div className="voice-examples">
-              {examples.map((e) => (
-                <button type="button" key={e} onClick={() => dictate(e)}>
-                  “{e}”
-                </button>
-              ))}
-            </div>
+            {DEMO_MODE && (
+              <>
+                <span className="eyebrow voice-eyebrow">PRUEBA DECIR</span>
+                <div className="voice-examples">
+                  {examples.map((e) => (
+                    <button type="button" key={e} onClick={() => dictate(e)}>
+                      “{e}”
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </>
         ) : (
           <>

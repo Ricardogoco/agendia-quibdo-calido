@@ -14,10 +14,12 @@ import {
   CheckCheck,
   Play,
   Bot,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Locked, hasFeature, type Plan, type Feature } from "@/components/plans-reminders";
+import { DEMO_MODE } from "@/config/demo";
 export type Gate = {
   plan: Plan;
   offline: boolean;
@@ -61,6 +63,7 @@ const niceDate = (d: string) =>
     new Date(`${d}T12:00:00`),
   );
 
+/** Reunión de ejemplo (Ricardo y Víctor): solo se usa en modo demostración. */
 export const sampleMeeting = (date: string, duration: string): Meeting => ({
   id: Date.now(),
   title: "Acuerdo con proveedor · Víctor (Distribuidora del Atrato)",
@@ -128,6 +131,21 @@ export const sampleMeeting = (date: string, duration: string): Meeting => ({
   ],
 });
 
+/** Reunión grabada sin servicio de IA conectado: solo fecha y duración. */
+const pendingMeeting = (date: string, duration: string): Meeting => ({
+  id: Date.now(),
+  title: `Reunión del ${niceDate(date)}`,
+  date,
+  duration,
+  summary: "El resumen estará disponible cuando se conecte el servicio de IA.",
+  agreements: [],
+  tasks: [],
+  open: [],
+  keywords: [],
+  transcript: [],
+});
+const speakers = (m: Meeting) => [...new Set(m.transcript.map((l) => l.who))];
+
 /* ---------------- Reuniones ---------------- */
 export function MeetingsView({
   meetings,
@@ -162,15 +180,20 @@ export function MeetingsView({
   const stop = () => {
     if (gate.offline) gate.pending();
     setState("proc");
-    const dur = fmt(Math.max(secs, 9 * 60 + 12));
-    setTimeout(() => {
-      const m = sampleMeeting(today, dur);
-      onSave([m, ...meetings]);
-      setState("idle");
-      setSecs(0);
-      setOpenId(m.id);
-      toast("Reunión procesada");
-    }, 2200);
+    // En demo se simula el procesamiento con la reunión de ejemplo; sin demo solo se
+    // guarda la fecha y la duración real hasta que exista el servicio de IA.
+    const dur = DEMO_MODE ? fmt(Math.max(secs, 9 * 60 + 12)) : fmt(secs);
+    setTimeout(
+      () => {
+        const m = DEMO_MODE ? sampleMeeting(today, dur) : pendingMeeting(today, dur);
+        onSave([m, ...meetings]);
+        setState("idle");
+        setSecs(0);
+        setOpenId(m.id);
+        toast(DEMO_MODE ? "Reunión procesada" : "Reunión guardada");
+      },
+      DEMO_MODE ? 2200 : 600,
+    );
   };
   const open = meetings.find((m) => m.id === openId);
   if (open)
@@ -193,8 +216,12 @@ export function MeetingsView({
         {state === "proc" ? (
           <>
             <div className="rec-spinner" aria-hidden="true" />
-            <strong>Procesando…</strong>
-            <p>Estoy organizando acuerdos, tareas y temas.</p>
+            <strong>{DEMO_MODE ? "Procesando…" : "Guardando…"}</strong>
+            <p>
+              {DEMO_MODE
+                ? "Estoy organizando acuerdos, tareas y temas."
+                : "Guardando la reunión en este dispositivo."}
+            </p>
           </>
         ) : (
           <>
@@ -312,10 +339,13 @@ function MeetingDetail({
       .map((l) => ({ l, s: words.filter((w) => norm(l.text).includes(w.slice(0, 5))).length }))
       .sort((a, b) => b.s - a.s);
     const best = scored[0];
-    const a =
-      best && best.s > 0
+    const a = !m.transcript.length
+      ? "Esta reunión aún no tiene transcripción. Podrás preguntarle cuando se conecte el servicio de IA."
+      : best && best.s > 0
         ? `En el minuto ${best.l.min}, ${best.l.who} dijo: "${best.l.text}"`
-        : `No encontré eso exacto. Lo más importante: ${m.agreements[0]} (minuto ${m.transcript[1]?.min ?? "00:00"}).`;
+        : m.agreements[0]
+          ? `No encontré eso exacto. Lo más importante: ${m.agreements[0]} (minuto ${m.transcript[1]?.min ?? "00:00"}).`
+          : "No encontré eso en la transcripción.";
     setAnswers((prev) => [...prev, { q: question, a }]);
     setQ("");
   };
@@ -326,7 +356,8 @@ function MeetingDetail({
       </Button>
       <h2 className="meeting-title">{m.title}</h2>
       <p className="meeting-meta">
-        {niceDate(m.date)} · {m.duration} min · Ricardo y Víctor
+        {niceDate(m.date)} · {m.duration} min
+        {speakers(m).length ? ` · ${speakers(m).join(" y ")}` : ""}
       </p>
       <div className="finance-tabs">
         {["Resumen", "Transcripción", "Mapa mental"].map((t) => (
@@ -344,7 +375,9 @@ function MeetingDetail({
         <div className="meeting-sections">
           <p className="meeting-summary">{m.summary}</p>
           <h3>Acuerdos</h3>
-          {hasFeature(gate.plan, "acuerdos") ? (
+          {!m.agreements.length ? (
+            <p className="empty-state">Sin acuerdos todavía.</p>
+          ) : hasFeature(gate.plan, "acuerdos") ? (
             <ul>
               {m.agreements.map((a) => (
                 <li key={a}>
@@ -357,6 +390,7 @@ function MeetingDetail({
             <Locked feature="acuerdos" onUpgrade={gate.locked} compact />
           )}
           <h3>Tareas asignadas</h3>
+          {!m.tasks.length && <p className="empty-state">Sin tareas todavía.</p>}
           <div className="stack-list">
             {m.tasks.map((t) => (
               <div key={t.text} className="task-assign">
@@ -378,6 +412,7 @@ function MeetingDetail({
             ))}
           </div>
           <h3>Temas inconclusos</h3>
+          {!m.open.length && <p className="empty-state">Sin temas pendientes todavía.</p>}
           <ul>
             {m.open.map((a) => (
               <li key={a} className="pending">
@@ -396,13 +431,18 @@ function MeetingDetail({
         </div>
       )}
       {tab === "Transcripción" && gate.offline && <PendingNote what="Transcripción" />}
+      {tab === "Transcripción" && !gate.offline && !m.transcript.length && (
+        <p className="empty-state">
+          La transcripción estará disponible cuando se conecte el servicio de IA.
+        </p>
+      )}
       {tab === "Transcripción" && !gate.offline && (
         <div className="transcript">
           {m.transcript.map((l) => (
             <div key={l.min}>
               <span className="mono">{l.min}</span>
               <div>
-                <strong className={l.who === "Víctor" ? "other" : ""}>{l.who}</strong>
+                <strong className={l.who !== speakers(m)[0] ? "other" : ""}>{l.who}</strong>
                 <p>{l.text}</p>
               </div>
             </div>
@@ -452,11 +492,14 @@ function MeetingDetail({
         <div className="detail-card">
           <h3>Pregúntale a la grabación</h3>
           <div className="chip-row mb-3">
-            {[
-              "¿Cuál fue el precio?",
-              "¿Cada cuánto son las entregas?",
-              "¿Qué pasó con el transporte?",
-            ].map((s) => (
+            {(m.transcript.length && DEMO_MODE
+              ? [
+                  "¿Cuál fue el precio?",
+                  "¿Cada cuánto son las entregas?",
+                  "¿Qué pasó con el transporte?",
+                ]
+              : []
+            ).map((s) => (
               <Button
                 key={s}
                 size="sm"
@@ -508,6 +551,7 @@ type AsstData = {
   movements: { amount: number; category: string; kind: string; date: string }[];
   meetings: Meeting[];
   debts: { title: string; balance: number; incoming?: boolean }[];
+  rent: { amount: number; day: number; landlord: string } | null;
   available: number;
 };
 export function AssistantView({
@@ -542,12 +586,20 @@ export function AssistantView({
     const month = d.today.slice(0, 7);
     if (/usura/.test(s))
       return "La tasa de usura es el interés máximo que la ley permite cobrar en Colombia por un crédito. La certifica la Superintendencia Financiera cada mes y equivale a 1,5 veces el interés bancario corriente. Cobrar por encima de ella es un delito, así que revisa que tu tarjeta de crédito y tus préstamos estén por debajo.";
-    if (/arriendo|arrendador|yolanda/.test(s)) {
+    const landlordWords = (d.rent?.landlord ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .split(/[\s.]+/)
+      .filter((w) => w.length > 3);
+    if (/arriendo|arrendador/.test(s) || landlordWords.some((w) => s.includes(w))) {
+      if (!d.rent)
+        return "Aún no registras tu arriendo. Puedes agregarlo en Finanzas, pestaña Arriendo.";
       const day = Number(d.today.slice(8, 10));
-      const left = 30 - day;
-      return `Tu arriendo de $850.000 vence el día 30 de este mes${left > 0 ? `, en ${left} día${left === 1 ? "" : "s"}` : left === 0 ? ", es decir, hoy" : ""}. Se le paga a la Sra. Yolanda Mosquera.`;
+      const left = d.rent.day - day;
+      return `Tu arriendo de ${money(d.rent.amount)}${d.rent.landlord ? ` (${d.rent.landlord})` : ""} vence el día ${d.rent.day} de este mes${left > 0 ? `, en ${left} día${left === 1 ? "" : "s"}` : left === 0 ? ", es decir, hoy" : ""}.`;
     }
-    if (/victor/.test(s)) {
+    if (DEMO_MODE && /victor/.test(s)) {
       const m = d.meetings.find((x) => /víctor|victor/i.test(x.title));
       const ev = d.events.find((e) => /víctor|victor/i.test(e.title));
       const tk = d.tasks.filter((t) => !t.done && /víctor|victor/i.test(t.text));
@@ -588,10 +640,13 @@ export function AssistantView({
       return `${ev.length ? `Hoy tienes ${ev.length} compromiso${ev.length > 1 ? "s" : ""}: ${ev.map((e) => `${e.title} a las ${clock(e.time)} en ${e.place}`).join("; ")}.` : "Hoy no tienes compromisos."} ${tk.length ? `Y ${tk.length} tarea${tk.length > 1 ? "s" : ""} pendiente${tk.length > 1 ? "s" : ""}: ${tk.map((t) => t.text).join(", ")}.` : ""}`;
     }
     if (/debo|deuda|me deben/.test(s)) {
-      return `Debes: ${d.debts
-        .filter((x) => !x.incoming)
-        .map((x) => `${x.title} ${money(x.balance)}`)
-        .join(", ")}. Te deben: ${
+      if (!d.debts.length) return "No tienes deudas registradas, ni nadie te debe.";
+      return `Debes: ${
+        d.debts
+          .filter((x) => !x.incoming)
+          .map((x) => `${x.title} ${money(x.balance)}`)
+          .join(", ") || "nada"
+      }. Te deben: ${
         d.debts
           .filter((x) => x.incoming)
           .map((x) => `${x.title} ${money(x.balance)}`)
@@ -600,7 +655,9 @@ export function AssistantView({
     }
     if (/disponible|saldo|plata/.test(s))
       return `Tienes ${money(d.available)} disponibles entre Bancolombia, Nequi y efectivo.`;
-    return "Todavía no sé responder eso. Prueba con tu agenda de hoy, tus gastos del mes, el arriendo, tus deudas o lo pendiente con Víctor.";
+    return DEMO_MODE
+      ? "Todavía no sé responder eso. Prueba con tu agenda de hoy, tus gastos del mes, el arriendo, tus deudas o lo pendiente con Víctor."
+      : "Todavía no sé responder eso. Prueba con tu agenda de hoy, tus gastos del mes, el arriendo o tus deudas.";
   };
   const send = (text: string) => {
     if (!text.trim() || typing) return;
@@ -657,7 +714,7 @@ export function AssistantView({
         {[
           "¿Qué tengo hoy?",
           "¿Cuánto gasté este mes?",
-          "¿Qué quedó pendiente con Víctor?",
+          ...(DEMO_MODE ? ["¿Qué quedó pendiente con Víctor?"] : []),
           "¿Cuándo vence el arriendo?",
           "¿Qué es la tasa de usura?",
         ].map((s) => (
@@ -802,6 +859,12 @@ export function InvoicesView({
             }
             if (!f.fileName) {
               toast("Primero sube la foto de la factura");
+              return;
+            }
+            if (!DEMO_MODE) {
+              toast(
+                "La lectura automática estará disponible cuando se conecte el servicio de IA. Por ahora, completa los datos a mano.",
+              );
               return;
             }
             setF((p) => ({
@@ -954,6 +1017,25 @@ export function InvoicesView({
 
 /* ---------------- WhatsApp ---------------- */
 export function WhatsAppView({ name }: { name: string }) {
+  if (!DEMO_MODE)
+    return (
+      <div className="detail-card">
+        <div className="detail-icon">
+          <MessageCircle />
+        </div>
+        <h3>AgendIA-UIB en WhatsApp</h3>
+        <p>
+          Muy pronto podrás escribirle o mandarle notas de voz a AgendIA-UIB desde WhatsApp, y
+          quedarán registradas aquí mismo.
+        </p>
+        <ul className="wa-howto">
+          <li>Dile qué gastaste, qué te pagaron o qué tienes pendiente.</li>
+          <li>AgendIA-UIB lo anota en tu agenda o en tus finanzas y te confirma.</li>
+          <li>También te recordará tus citas y pagos por ese mismo chat.</li>
+        </ul>
+        <p className="fine-print">Esta función aún no está conectada.</p>
+      </div>
+    );
   return (
     <div className="wa">
       <div className="wa-head">
