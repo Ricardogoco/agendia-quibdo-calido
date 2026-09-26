@@ -511,7 +511,9 @@ export function AgendiaApp({ view }: { view: View }) {
         }
         setData(saved);
       }
-    } catch {}
+    } catch {
+      /* Datos guardados ilegibles o almacenamiento bloqueado: se usan los datos iniciales. */
+    }
     setReady(true);
   }, []);
   useEffect(() => {
