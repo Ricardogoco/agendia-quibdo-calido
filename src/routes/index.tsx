@@ -1,3 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AgendiaApp } from "@/components/agendia-app";
-export const Route = createFileRoute("/")({head:()=>({meta:[{title:"Inicio | AgendIA-UIB"},{name:"description",content:"Tu agenda y asistente personal para organizar tu día y tus finanzas en Colombia."},{property:"og:title",content:"Inicio | AgendIA-UIB"},{property:"og:description",content:"Tu agenda y asistente personal para organizar tu día y tus finanzas en Colombia."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:()=> <AgendiaApp view="inicio"/>});
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Inicio | AgendIA-UIB" },
+      {
+        name: "description",
+        content: "Tu agenda y asistente personal para organizar tu día y tus finanzas en Colombia.",
+      },
+      { property: "og:title", content: "Inicio | AgendIA-UIB" },
+      {
+        property: "og:description",
+        content: "Tu agenda y asistente personal para organizar tu día y tus finanzas en Colombia.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: () => <AgendiaApp view="inicio" />,
+});
