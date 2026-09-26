@@ -16,7 +16,9 @@ import { Route as AsistenteRouteImport } from './routes/asistente'
 import { Route as FacturasRouteImport } from './routes/facturas'
 import { Route as FinanzasRouteImport } from './routes/finanzas'
 import { Route as MasRouteImport } from './routes/mas'
+import { Route as NotasRouteImport } from './routes/notas'
 import { Route as PlanesRouteImport } from './routes/planes'
+import { Route as PqrsRouteImport } from './routes/pqrs'
 import { Route as ReunionesRouteImport } from './routes/reuniones'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 
@@ -55,9 +57,19 @@ const MasRoute = MasRouteImport.update({
   path: '/mas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotasRoute = NotasRouteImport.update({
+  id: '/notas',
+  path: '/notas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlanesRoute = PlanesRouteImport.update({
   id: '/planes',
   path: '/planes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PqrsRoute = PqrsRouteImport.update({
+  id: '/pqrs',
+  path: '/pqrs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReunionesRoute = ReunionesRouteImport.update({
@@ -79,7 +91,9 @@ export interface FileRoutesByFullPath {
   '/facturas': typeof FacturasRoute
   '/finanzas': typeof FinanzasRoute
   '/mas': typeof MasRoute
+  '/notas': typeof NotasRoute
   '/planes': typeof PlanesRoute
+  '/pqrs': typeof PqrsRoute
   '/reuniones': typeof ReunionesRoute
   '/whatsapp': typeof WhatsappRoute
 }
@@ -91,7 +105,9 @@ export interface FileRoutesByTo {
   '/facturas': typeof FacturasRoute
   '/finanzas': typeof FinanzasRoute
   '/mas': typeof MasRoute
+  '/notas': typeof NotasRoute
   '/planes': typeof PlanesRoute
+  '/pqrs': typeof PqrsRoute
   '/reuniones': typeof ReunionesRoute
   '/whatsapp': typeof WhatsappRoute
 }
@@ -104,7 +120,9 @@ export interface FileRoutesById {
   '/facturas': typeof FacturasRoute
   '/finanzas': typeof FinanzasRoute
   '/mas': typeof MasRoute
+  '/notas': typeof NotasRoute
   '/planes': typeof PlanesRoute
+  '/pqrs': typeof PqrsRoute
   '/reuniones': typeof ReunionesRoute
   '/whatsapp': typeof WhatsappRoute
 }
@@ -118,7 +136,9 @@ export interface FileRouteTypes {
     | '/facturas'
     | '/finanzas'
     | '/mas'
+    | '/notas'
     | '/planes'
+    | '/pqrs'
     | '/reuniones'
     | '/whatsapp'
   fileRoutesByTo: FileRoutesByTo
@@ -130,7 +150,9 @@ export interface FileRouteTypes {
     | '/facturas'
     | '/finanzas'
     | '/mas'
+    | '/notas'
     | '/planes'
+    | '/pqrs'
     | '/reuniones'
     | '/whatsapp'
   id:
@@ -142,7 +164,9 @@ export interface FileRouteTypes {
     | '/facturas'
     | '/finanzas'
     | '/mas'
+    | '/notas'
     | '/planes'
+    | '/pqrs'
     | '/reuniones'
     | '/whatsapp'
   fileRoutesById: FileRoutesById
@@ -155,7 +179,9 @@ export interface RootRouteChildren {
   FacturasRoute: typeof FacturasRoute
   FinanzasRoute: typeof FinanzasRoute
   MasRoute: typeof MasRoute
+  NotasRoute: typeof NotasRoute
   PlanesRoute: typeof PlanesRoute
+  PqrsRoute: typeof PqrsRoute
   ReunionesRoute: typeof ReunionesRoute
   WhatsappRoute: typeof WhatsappRoute
 }
@@ -211,11 +237,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notas': {
+      id: '/notas'
+      path: '/notas'
+      fullPath: '/notas'
+      preLoaderRoute: typeof NotasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/planes': {
       id: '/planes'
       path: '/planes'
       fullPath: '/planes'
       preLoaderRoute: typeof PlanesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pqrs': {
+      id: '/pqrs'
+      path: '/pqrs'
+      fullPath: '/pqrs'
+      preLoaderRoute: typeof PqrsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reuniones': {
@@ -243,7 +283,9 @@ const rootRouteChildren: RootRouteChildren = {
   FacturasRoute: FacturasRoute,
   FinanzasRoute: FinanzasRoute,
   MasRoute: MasRoute,
+  NotasRoute: NotasRoute,
   PlanesRoute: PlanesRoute,
+  PqrsRoute: PqrsRoute,
   ReunionesRoute: ReunionesRoute,
   WhatsappRoute: WhatsappRoute,
 }

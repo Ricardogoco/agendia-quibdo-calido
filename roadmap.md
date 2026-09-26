@@ -2,3 +2,7 @@
 - [x] Add personalization, settings, navigation, and local persistence.
 - [x] Add supporting sections for meetings, assistant, invoices, WhatsApp, and plans.
 - [x] Verify layout and interactions in browser.
+- [x] Make action buttons more illustrative and function-specific.
+- [x] Add a quick notes notebook with edit/delete and local persistence.
+- [x] Allow custom savings goals and contributions beyond natilleras.
+- [x] Add a PQRS form and local history with clear unsent status.
